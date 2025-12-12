@@ -1,8 +1,0 @@
-volumes: []
-
-volumeMounts: []
-
-
-persistence:
-  config: {}
-  docker: {}
