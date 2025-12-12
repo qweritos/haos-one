@@ -78,7 +78,14 @@ ADD ./rootfs /
 RUN systemctl enable systemd-journal-remote.service systemd-resolved systemd-journal-gatewayd hass-install avahi-daemon systemd-journal-gatewayd.socket
 
 # HACK: ignore post-installation scripts
-RUN cd /tmp && wget -O os-agent.deb https://github.com/home-assistant/os-agent/releases/download/${OS_AGENT_VERSION}/os-agent_${OS_AGENT_VERSION}_linux_x86_64.deb && \
+ARG TARGETARCH
+RUN ARCH="${TARGETARCH:-$(dpkg --print-architecture)}" && \
+      OS_AGENT_ARCH=$(case "${ARCH}" in \
+        amd64) echo x86_64 ;; \
+        arm64) echo aarch64 ;; \
+        *) echo "${ARCH}" ;; \
+      esac) && \
+      cd /tmp && wget -O os-agent.deb https://github.com/home-assistant/os-agent/releases/download/${OS_AGENT_VERSION}/os-agent_${OS_AGENT_VERSION}_linux_${OS_AGENT_ARCH}.deb && \
       dpkg --unpack os-agent.deb && \
       rm /var/lib/dpkg/info/os-agent.postinst -f && \
       dpkg --configure os-agent && \
