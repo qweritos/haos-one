@@ -23,6 +23,7 @@ RUN install -m 0755 -d /etc/apt/keyrings && \
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
   systemd \
+  systemd-sysv \
   apparmor \
   jq \
   wget \
