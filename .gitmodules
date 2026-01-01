@@ -1,0 +1,3 @@
+[submodule "hass-os"]
+	path = hass-os
+	url = https://github.com/home-assistant/operating-system.git
