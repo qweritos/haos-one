@@ -1,0 +1,17 @@
+[Unit]
+Description=Home Assistant OS Device Wipe Service
+DefaultDependencies=no
+RefuseManualStart=true
+RefuseManualStop=true
+Wants=mnt-boot.mount
+After=mnt-boot.mount
+Before=mnt-data.mount mnt-overlay.mount
+ConditionKernelCommandLine=haos.wipe=1
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/libexec/haos-wipe
+
+[Install]
+WantedBy=sysinit.target

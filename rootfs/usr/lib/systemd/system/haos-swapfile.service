@@ -1,0 +1,13 @@
+[Unit]
+Description=HAOS swap
+DefaultDependencies=no
+Requires=etc-default.mount mnt-data.mount
+After=etc-default.mount mnt-data.mount systemd-growfs@mnt-data.service
+Before=mnt-data-swapfile.swap
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/haos-swapfile
+
+[Install]
+WantedBy=swap.target
