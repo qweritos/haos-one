@@ -23,8 +23,9 @@ ENV LIBGUESTFS_TRACE=1
 
 RUN guestfish --ro -a /input/disk.qcow2 -m /dev/sda3 copy-out / /rootfs
 
-ADD ./rootfs /
+ADD ./rootfs/entrypoint.sh /
+ADD ./rootfs /rootfs-add
 
 
 ENTRYPOINT ["/entrypoint.sh"]
-# CMD [ "/sbin/init" ]
+CMD [ "/sbin/init" ]
