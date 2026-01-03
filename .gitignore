@@ -1,1 +1,8 @@
-data
+.DS_Store
+
+data/*
+
+!.keep
+
+hass-os
+supervisor

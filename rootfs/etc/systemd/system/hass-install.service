@@ -1,9 +1,0 @@
-[Unit]
-Description=Install HASS Supervised
-After=docker.service
-
-[Service]
-ExecStart=/install.sh
-
-[Install]
-WantedBy=multi-user.target
