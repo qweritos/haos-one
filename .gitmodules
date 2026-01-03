@@ -1,3 +1,6 @@
 [submodule "hass-os"]
 	path = hass-os
 	url = https://github.com/home-assistant/operating-system.git
+[submodule "supervisor"]
+	path = supervisor
+	url = https://github.com/home-assistant/supervisor.git
