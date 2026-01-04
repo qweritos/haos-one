@@ -10,15 +10,26 @@ RUN apt-get update \
   xz-utils linux-image-generic \
   && rm -rf /var/lib/apt/lists/*
 
+ARG TARGETARCH
 ARG IMAGE_VERSION="17.0.rc1"
-ENV IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${IMAGE_VERSION}/haos_ova-${IMAGE_VERSION}.qcow2.xz"
+ARG DATA_IMG_SIZE="3G"
+ENV DATA_IMG_SIZE="${DATA_IMG_SIZE}"
 
 RUN mkdir -p /input /rootfs
 
-RUN curl -fL "$IMAGE_URL" -o /input/disk.qcow2.xz && \
+RUN case "${TARGETARCH}" in \
+    arm64) IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${IMAGE_VERSION}/haos_generic-aarch64-${IMAGE_VERSION}.qcow2.xz" ;; \
+    amd64|x86_64|"") IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${IMAGE_VERSION}/haos_ova-${IMAGE_VERSION}.qcow2.xz" ;; \
+    *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
+  esac && \
+  curl -fL "$IMAGE_URL" -o /input/disk.qcow2.xz && \
   unxz /input/disk.qcow2.xz
 
-RUN guestfish --ro -a /input/disk.qcow2 -m /dev/sda3 copy-out / /rootfs
+ENV LIBGUESTFS_DEBUG=1 LIBGUESTFS_TRACE=1
+RUN case "${TARGETARCH}" in \
+    arm64) export LIBGUESTFS_BACKEND=direct LIBGUESTFS_BACKEND_SETTINGS=force_tcg ;; \
+  esac && \
+  guestfish --ro -a /input/disk.qcow2 -m /dev/sda3 copy-out / /rootfs
 
 # -------------------------------------------------------------------------------
 
@@ -51,17 +62,9 @@ RUN systemctl mask -- \
   cgproxy.service \
   systemd-tmpfiles-setup-dev.service \
   systemd-remount-fs.service \
-  systemd-ask-password-wall.path
-#      systemctl set-default multi-user.target || true
+  systemd-ask-password-wall.path \
+  sleep.target suspend.target hibernate.target hybrid-sleep.target ModemManager.service
 
-RUN systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target ModemManager.service
-
-# RUN mkdir -p /var/log/audit
-# RUN ln -s /run /var/run
-
-# ENV DOCKER_HOST=unix:///run/docker.sock
-
-RUN curl -L https://github.com/containers/fuse-overlayfs/releases/download/v1.16/fuse-overlayfs-x86_64 -o /usr/bin/fuse-overlayfs && chmod +x /usr/bin/fuse-overlayfs
 ADD ./rootfs /
 STOPSIGNAL SIGRTMIN+3
 

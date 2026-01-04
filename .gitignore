@@ -3,3 +3,6 @@
 data/*
 
 !.keep
+
+hass-os
+supervisor
