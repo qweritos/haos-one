@@ -44,7 +44,7 @@ Your persistence (configuration and other data) is stored in `./data/`.
 
 Replace `-p 8123:8123` with `--network host` if you want host networking (required for autodiscovery features).
 
-Open http://localhost:8123 and follow instructions.
+Wait for http://localhost:8123 to be available. Now you can create new House or restore from existing backup.
 
 > First startup can take a while as it pulls all required images — please be patient.
 
