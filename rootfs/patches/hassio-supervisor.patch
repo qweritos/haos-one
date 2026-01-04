@@ -1,16 +1,8 @@
 diff --git a/usr/src/supervisor/supervisor/__main__.py b/usr/src/supervisor/supervisor/__main__.py
-index 686e83f09..d0731d1a5 100644
+index 686e83f09..b85d297ff 100644
 --- a/usr/src/supervisor/supervisor/__main__.py
 +++ b/usr/src/supervisor/supervisor/__main__.py
-@@ -22,7 +22,6 @@ _LOGGER: logging.Logger = logging.getLogger(__name__)
- 
- CONTAINER_OS_STARTUP_CHECK = Path("/run/os/startup-marker")
- 
--
- def run_os_startup_check_cleanup() -> None:
-     """Cleanup OS startup check."""
-     if not CONTAINER_OS_STARTUP_CHECK.exists():
-@@ -37,6 +36,8 @@ def run_os_startup_check_cleanup() -> None:
+@@ -37,6 +37,8 @@ def run_os_startup_check_cleanup() -> None:
  # pylint: disable=invalid-name
  if __name__ == "__main__":
      bootstrap.initialize_logging()
@@ -19,3 +11,79 @@ index 686e83f09..d0731d1a5 100644
  
      # Init async event loop
      loop = asyncio.new_event_loop()
+diff --git a/usr/src/supervisor/supervisor/docker/addon.py b/usr/src/supervisor/supervisor/docker/addon.py
+index 89b7de740..94bed3194 100644
+--- a/usr/src/supervisor/supervisor/docker/addon.py
++++ b/usr/src/supervisor/supervisor/docker/addon.py
+@@ -597,7 +597,7 @@ class DockerAddon(DockerInterface):
+                 extra_hosts=self.network_mapping,
+                 device_cgroup_rules=self.cgroups_rules,
+                 cap_add=self.capabilities,
+-                ulimits=self.ulimits,
++                # ulimits=self.ulimits,
+                 cpu_rt_runtime=self.cpu_rt_runtime,
+                 security_opt=self.security_opt,
+                 environment=self.environment,
+diff --git a/usr/src/supervisor/supervisor/docker/audio.py b/usr/src/supervisor/supervisor/docker/audio.py
+index 570ab18c0..8a60b25ec 100644
+--- a/usr/src/supervisor/supervisor/docker/audio.py
++++ b/usr/src/supervisor/supervisor/docker/audio.py
+@@ -103,7 +103,7 @@ class DockerAudio(DockerInterface, CoreSysAttributes):
+             detach=True,
+             cap_add=self.capabilities,
+             security_opt=self.security_opt,
+-            ulimits=self.ulimits,
++            #ulimits=self.ulimits,
+             cpu_rt_runtime=self.cpu_rt_runtime,
+             device_cgroup_rules=self.cgroups_rules,
+             environment={
+diff --git a/usr/src/supervisor/supervisor/docker/manager.py b/usr/src/supervisor/supervisor/docker/manager.py
+index cb065f9f4..ad3203ecd 100644
+--- a/usr/src/supervisor/supervisor/docker/manager.py
++++ b/usr/src/supervisor/supervisor/docker/manager.py
+@@ -363,8 +363,11 @@ class DockerAPI(CoreSysAttributes):
+             # default timeout to make sure CoreDNS fallback is working
+             # on first query.
+             kwargs["dns_opt"] = ["timeout:10"]
+-            if hostname:
+-                kwargs["domainname"] = DNS_SUFFIX
++            
++            
++            _LOGGER.warning("Skip --domainname arg for rootless compatibility")
++            # if hostname:
++            #     kwargs["domainname"] = DNS_SUFFIX
+ 
+         # Setup network
+         if not network_mode:
+diff --git a/usr/src/supervisor/supervisor/jobs/decorator.py b/usr/src/supervisor/supervisor/jobs/decorator.py
+index c1d890797..b0352fa89 100644
+--- a/usr/src/supervisor/supervisor/jobs/decorator.py
++++ b/usr/src/supervisor/supervisor/jobs/decorator.py
+@@ -338,10 +338,10 @@ class Job(CoreSysAttributes):
+                 ignored_conditions,
+             )
+ 
+-        if JobCondition.HEALTHY in used_conditions and not coresys.sys_core.healthy:
+-            raise JobConditionException(
+-                f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)}"
+-            )
++        # if JobCondition.HEALTHY in used_conditions and not coresys.sys_core.healthy:
++        #     raise JobConditionException(
++        #         f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)}"
++        #     )
+ 
+         if (
+             JobCondition.RUNNING in used_conditions
+diff --git a/usr/src/supervisor/supervisor/resolution/evaluate.py b/usr/src/supervisor/supervisor/resolution/evaluate.py
+index 5bd30586e..8c867988c 100644
+--- a/usr/src/supervisor/supervisor/resolution/evaluate.py
++++ b/usr/src/supervisor/supervisor/resolution/evaluate.py
+@@ -14,7 +14,7 @@ _LOGGER: logging.Logger = logging.getLogger(__name__)
+ 
+ UNHEALTHY = [
+     UnsupportedReason.LXC,
+-    UnsupportedReason.PRIVILEGED,
++    # UnsupportedReason.PRIVILEGED,
+ ]
+ 
+ 
