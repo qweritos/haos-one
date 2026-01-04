@@ -30,6 +30,7 @@
 - Avoid VM performance overhead and hypervisor complexity.
 - Use host hardware (like USB devices) directly without passthrough.
 - Use host networking for service autodiscovery, simpler routing, and lower latency.
+- __x86-64__ and __ARM__ images available.
 - Kubernetes? Sure. [Helm chart included](./charts/haos-one).
 
 ## How
@@ -47,6 +48,18 @@ Replace `-p 8123:8123` with `--network host` if you want host networking (requir
 Wait for http://localhost:8123 to be available. Now you can create new House or restore from existing backup.
 
 > First startup can take a while as it pulls all required images — please be patient.
+
+## Recipes
+
+- Host networking (best for autodiscovery):
+  ```
+  docker run --name haos -ti --privileged --network host -v ./data:/mnt/data qweritos/haos-one
+  ```
+- macOS: use a named volume (overlay2 feature gaps with bind mounts):
+  ```
+  docker volume create haos-data
+  docker run --name haos -ti --privileged -p 8123:8123 -v haos-data:/mnt/data qweritos/haos-one
+  ```
 
 ## Troubleshooting
 
@@ -70,7 +83,7 @@ See [docs](docs) for details.
 
 | OS                             | Arch   | Env                                                         | Status | Notes                |
 | ------------------------------ | ------ | ----------------------------------------------------------- | ------ | -------------------- |
-| macOS 15.6 (24G84)             | x86_64 | Docker Desktop 4.55.0, Docker Engine 29.1.3 (client/server) | ✅     | AppArmor unavailable |
+| macOS 15.6 (24G84)             | x86_64 | Docker Desktop 4.55.0, Docker Engine 29.1.3 (client/server) | ✅     | AppArmor unavailable; use named volume (see [Recipes](#recipes)). |
 | Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server)                        | ✅     | —                    |
 
 ## Known Issues
