@@ -49,6 +49,7 @@ RUN rm -f \
   /etc/systemd/system/etc-hostname.mount \
   /etc/systemd/system/etc-hosts.mount
 
+
 RUN systemctl mask -- \
   tmp.mount \
   etc-hostname.mount \

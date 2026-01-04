@@ -1,21 +1,21 @@
 #!/bin/sh
 set -eu
 
-mkdir -p /mnt/data
-if [ ! -e /data/data.img ]; then
-  size="${DATA_IMG_SIZE:-3G}"
-  # numfmt not available
-  case "$size" in
-    *G) count=$(( ${size%G} * 1024 )) ;;
-    *M) count=$(( ${size%M} )) ;;
-    *) echo "Unsupported DATA_IMG_SIZE=$size (use M or G suffix)" >&2; exit 1 ;;
-  esac
-  dd if=/dev/zero of=/data/data.img bs=1M count="$count"
-  mkfs.ext4 -F /data/data.img
-
-  sync
-fi
-mount /data/data.img /mnt/data
+# mkdir -p /mnt/data
+# if [ ! -e /data/data.img ]; then
+#   size="${DATA_IMG_SIZE:-3G}"
+#   case "$size" in
+#     *G) count=$(( ${size%G} * 1024 )) ;;
+#     *M) count=$(( ${size%M} )) ;;
+#     *) echo "Unsupported DATA_IMG_SIZE=$size (use M or G suffix)" >&2; exit 1 ;;
+#   esac
+#   dd if=/dev/zero of=/data/data.img bs=1M count="$count"
+#   mkfs.xfs -f -n ftype=1 /data/data.img
+#   sync
+# fi
+# loopdev="$(losetup -f)"
+# losetup "$loopdev" /data/data.img
+# mount -t xfs "$loopdev" /mnt/data
 
 mount --make-rshared /
 mount --make-rshared /mnt/data
