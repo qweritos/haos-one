@@ -1,5 +1,13 @@
 FROM debian:stable-slim AS builder
 
+LABEL org.opencontainers.image.title="haos-one"
+LABEL org.opencontainers.image.authors="Andrey Artamonychev<me@andrey.wtf>"
+LABEL org.opencontainers.image.vendor="Andrey Artamonychev"
+LABEL org.opencontainers.image.source="https://github.com/qweritos/haos-one"
+LABEL org.opencontainers.image.documentation="https://github.com/qweritos/haos-one/tree/master/docs"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL org.opencontainers.image.description="Home Assistant Operating System: Single‑Container Docker Image"
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
@@ -34,6 +42,7 @@ RUN case "${TARGETARCH}" in \
 # -------------------------------------------------------------------------------
 
 FROM scratch
+
 COPY --from=builder /rootfs/ /
 
 ADD ./rootfs/entrypoint.sh /
