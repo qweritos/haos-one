@@ -37,7 +37,7 @@
 Simple as one command:
 
 ```
-docker run --name haos -ti --privileged -p 8123:8123 -v ./data:/data qweritos/haos-one
+docker run --name haos -ti --privileged -p 8123:8123 -v ./data:/mnt/data qweritos/haos-one
 ```
 
 Your persistence (configuration and other data) is stored in `./data/`.
