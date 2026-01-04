@@ -57,8 +57,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.TAG_BASE }}-amd64
             ${{ env.DOCKERHUB_IMAGE }}:${{ env.TAG_BASE }}-amd64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=haos-one-amd64
+          cache-to: type=gha,mode=max,scope=haos-one-amd64
 
   build-arm64:
     name: Build arm64
@@ -100,8 +100,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.TAG_BASE }}-arm64
             ${{ env.DOCKERHUB_IMAGE }}:${{ env.TAG_BASE }}-arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=haos-one-arm64
+          cache-to: type=gha,mode=max,scope=haos-one-arm64
 
   publish-manifests:
     name: Publish manifests
