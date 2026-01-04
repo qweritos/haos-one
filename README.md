@@ -86,6 +86,7 @@ See [docs](docs) for details.
 | ------------------------------ | ------ | ----------------------------------------------------------- | ------ | -------------------- |
 | macOS 15.6 (24G84)             | x86_64 | Docker Desktop 4.55.0, Docker Engine 29.1.3 (client/server) | ✅     | AppArmor unavailable; use named volume (see [Recipes](#recipes)). |
 | Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server)                        | ✅     | —                    |
+| Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server) __rootless__                        | ✅     | —                    |
 
 ## Known Issues
 
