@@ -12,6 +12,8 @@ RUN apt-get update \
 
 ARG TARGETARCH
 ARG IMAGE_VERSION="17.0.rc1"
+ARG DATA_IMG_SIZE="3G"
+ENV DATA_IMG_SIZE="${DATA_IMG_SIZE}"
 
 RUN mkdir -p /input /rootfs
 
