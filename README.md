@@ -31,6 +31,7 @@
 - Use host hardware (like USB devices) directly without passthrough.
 - Use host networking for service autodiscovery, simpler routing, and lower latency.
 - __x86-64__ and __ARM__ images available.
+- Rootless containers support (experimental)
 - Kubernetes? Sure. [Helm chart included](./charts/haos-one).
 
 ## How
