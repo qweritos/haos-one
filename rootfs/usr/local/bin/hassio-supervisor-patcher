@@ -32,8 +32,8 @@ apply_patch() {
     return 0
   fi
 
-  if [ -f "$ROOT_DIR/usr/src/supervisor/supervisor/__main__.py" ] && \
-    grep -q 'Patched supervisor' "$ROOT_DIR/usr/src/supervisor/supervisor/__main__.py"; then
+  if [ -f "$ROOT_DIR/patched" ]; then
+    log "container already patched $CONTAINER_NAME"
     return 0
   fi
 
@@ -41,7 +41,7 @@ apply_patch() {
     -v "$ROOT_DIR":/rootfs \
     -v "$PATCH_FILE":/patches/hassio-supervisor.patch:ro \
     "$PATCH_IMAGE" sh -c \
-    'cd /rootfs && busybox patch -N -p1 -i /patches/hassio-supervisor.patch' || {
+    'cd /rootfs && busybox patch -N -p1 -i /patches/hassio-supervisor.patch && touch /rootfs/patched' || {
       log "patch failed; consider restarting hassos-supervisor.service"
       return 0
     }
