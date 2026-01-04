@@ -1,10 +1,8 @@
 name: Build and Push Docker Image
 
 on:
-  # push:
-  #   branches: ["master"]
-  # pull_request:
-  #   branches: ["master"]
+  push:
+    branches: ["**"]
   workflow_dispatch:
 
 permissions:
@@ -25,8 +23,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -44,6 +40,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "master" ]; then
+            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
+          else
+            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          fi
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -51,8 +55,8 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}-amd64
-            ${{ env.DOCKERHUB_IMAGE }}:${{ github.sha }}-amd64
+            ${{ env.IMAGE_NAME }}:${{ env.TAG_BASE }}-amd64
+            ${{ env.DOCKERHUB_IMAGE }}:${{ env.TAG_BASE }}-amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -62,8 +66,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -81,6 +83,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "master" ]; then
+            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
+          else
+            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          fi
+
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -88,8 +98,8 @@ jobs:
           platforms: linux/arm64
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ github.sha }}-arm64
-            ${{ env.DOCKERHUB_IMAGE }}:${{ github.sha }}-arm64
+            ${{ env.IMAGE_NAME }}:${{ env.TAG_BASE }}-arm64
+            ${{ env.DOCKERHUB_IMAGE }}:${{ env.TAG_BASE }}-arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -114,17 +124,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "master" ]; then
+            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
+          else
+            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+          fi
+
       - name: Create multi-arch manifests
         run: |
-          docker buildx imagetools create -t "${IMAGE_NAME}:latest" \
-            "${IMAGE_NAME}:${GITHUB_SHA}-amd64" \
-            "${IMAGE_NAME}:${GITHUB_SHA}-arm64"
-          docker buildx imagetools create -t "${IMAGE_NAME}:${GITHUB_SHA}" \
-            "${IMAGE_NAME}:${GITHUB_SHA}-amd64" \
-            "${IMAGE_NAME}:${GITHUB_SHA}-arm64"
-          docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:latest" \
-            "${DOCKERHUB_IMAGE}:${GITHUB_SHA}-amd64" \
-            "${DOCKERHUB_IMAGE}:${GITHUB_SHA}-arm64"
-          docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${GITHUB_SHA}" \
-            "${DOCKERHUB_IMAGE}:${GITHUB_SHA}-amd64" \
-            "${DOCKERHUB_IMAGE}:${GITHUB_SHA}-arm64"
+          docker buildx imagetools create -t "${IMAGE_NAME}:${TAG_BASE}" \
+            "${IMAGE_NAME}:${TAG_BASE}-amd64" \
+            "${IMAGE_NAME}:${TAG_BASE}-arm64"
+          docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${TAG_BASE}" \
+            "${DOCKERHUB_IMAGE}:${TAG_BASE}-amd64" \
+            "${DOCKERHUB_IMAGE}:${TAG_BASE}-arm64"
