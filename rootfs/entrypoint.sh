@@ -35,4 +35,8 @@ if [ -x /usr/bin/grub-editenv ]; then
   grub-editenv /mnt/boot/EFI/BOOT/grubenv set B_TRY=0
 fi
 
+mount
+# rm /etc/resolv.conf
+# echo "# empty" > /etc/resolv.conf
+
 exec "$@"

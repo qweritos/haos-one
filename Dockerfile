@@ -51,5 +51,7 @@ VOLUME [ "/mnt/data" ]
 
 STOPSIGNAL SIGRTMIN+3
 
+RUN rm /etc/resolv.conf; touch /etc/resolv.conf
+
 ENTRYPOINT ["/entrypoint.sh"]
-CMD [ "/sbin/init" ]
+CMD ["/sbin/init"]

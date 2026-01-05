@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "replicaCount": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of pods to run.",
+      "default": 1
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "repository": {
+          "type": "string",
+          "description": "Container image repository.",
+          "default": "qweritos/haos-one"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Container image tag.",
+          "default": "latest"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"],
+          "description": "Image pull policy.",
+          "default": "IfNotPresent"
+        }
+      },
+      "required": ["repository", "tag", "pullPolicy"]
+    },
+    "nameOverride": {
+      "type": "string",
+      "description": "Override chart name.",
+      "default": ""
+    },
+    "fullnameOverride": {
+      "type": "string",
+      "description": "Override full release name.",
+      "default": ""
+    },
+    "hostNetwork": {
+      "type": "boolean",
+      "description": "Enable host networking for the pod.",
+      "default": false
+    },
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Create a Service for the pod.",
+          "default": true
+        },
+        "type": {
+          "type": "string",
+          "description": "Service type.",
+          "default": "ClusterIP"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Service port.",
+          "default": 8123
+        }
+      },
+      "required": ["enabled", "type", "port"]
+    },
+    "persistence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable persistence.",
+          "default": true
+        },
+        "mountPath": {
+          "type": "string",
+          "description": "Path to mount the data volume inside the container.",
+          "default": "/mnt/data"
+        },
+        "accessMode": {
+          "type": "string",
+          "description": "PVC access mode.",
+          "default": "ReadWriteOnce"
+        },
+        "size": {
+          "type": "string",
+          "description": "PVC size request.",
+          "default": "10Gi"
+        },
+        "storageClass": {
+          "type": "string",
+          "description": "PVC storage class name.",
+          "default": ""
+        },
+        "existingClaim": {
+          "type": "string",
+          "description": "Use an existing PVC by name.",
+          "default": ""
+        },
+        "hostPath": {
+          "type": "string",
+          "description": "Use a hostPath instead of a PVC.",
+          "default": ""
+        }
+      },
+      "required": [
+        "enabled",
+        "mountPath",
+        "accessMode",
+        "size",
+        "storageClass",
+        "existingClaim",
+        "hostPath"
+      ]
+    },
+    "securityContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "privileged": {
+          "type": "boolean",
+          "description": "Run the container in privileged mode.",
+          "const": true,
+          "default": true
+        }
+      },
+      "required": ["privileged"]
+    },
+    "apparmor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unconfined": {
+          "type": "boolean",
+          "description": "Apply the unconfined AppArmor profile to the pod.",
+          "default": true
+        }
+      },
+      "required": ["unconfined"]
+    },
+    "podAnnotations": {
+      "type": "object",
+      "description": "Annotations to add to the pod.",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "resources": {
+      "type": "object",
+      "description": "Resource requests and limits.",
+      "default": {}
+    },
+    "nodeSelector": {
+      "type": "object",
+      "description": "Node selector for scheduling.",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "default": {}
+    },
+    "tolerations": {
+      "type": "array",
+      "description": "Tolerations for scheduling.",
+      "items": {
+        "type": "object"
+      },
+      "default": []
+    },
+    "affinity": {
+      "type": "object",
+      "description": "Affinity rules for scheduling.",
+      "default": {}
+    }
+  },
+  "required": [
+    "replicaCount",
+    "image",
+    "nameOverride",
+    "fullnameOverride",
+    "hostNetwork",
+    "service",
+    "persistence",
+    "securityContext",
+    "apparmor",
+    "podAnnotations",
+    "resources",
+    "nodeSelector",
+    "tolerations",
+    "affinity"
+  ]
+}

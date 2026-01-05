@@ -1,0 +1,46 @@
+replicaCount: 1
+
+# image:
+#   repository: qweritos/haos-one
+#   tag: latest
+#   pullPolicy: IfNotPresent
+
+image:
+  pullPolicy: Always
+  repository: registry.andrey.wtf/haos
+  tag: latest
+
+nameOverride: ""
+fullnameOverride: ""
+
+hostNetwork: false
+
+service:
+  enabled: true
+  type: ClusterIP
+  port: 8123
+
+persistence:
+  enabled: true
+  mountPath: /mnt/data
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  storageClass: ""
+  existingClaim: ""
+  hostPath: ""
+
+securityContext:
+  privileged: true
+
+apparmor:
+  unconfined: true
+
+podAnnotations: {}
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
