@@ -1,0 +1,90 @@
+File a/usr/src/supervisor/AGENTS.md is a unknown type while file b/usr/src/supervisor/AGENTS.md is a unknown type
+File a/usr/src/supervisor/CLAUDE.md is a unknown type while file b/usr/src/supervisor/CLAUDE.md is a unknown type
+diff -ruN a/usr/src/supervisor/supervisor/docker/addon.py b/usr/src/supervisor/supervisor/docker/addon.py
+--- a/usr/src/supervisor/supervisor/docker/addon.py	2026-01-03 21:27:15
++++ b/usr/src/supervisor/supervisor/docker/addon.py	2026-01-05 11:29:39
+@@ -583,6 +583,8 @@
+         # Don't set a hostname if no separate UTS namespace is used
+         hostname = None if self.uts_mode else self.addon.hostname
+ 
++        _LOGGER.warning("ulimits arg omitted for addon %s", self.addon.name)
++
+         # Create & Run container
+         try:
+             await self._run(
+@@ -599,7 +601,7 @@
+                 extra_hosts=self.network_mapping,
+                 device_cgroup_rules=self.cgroups_rules,
+                 cap_add=self.capabilities,
+-                ulimits=self.ulimits,
++                # ulimits=self.ulimits,
+                 cpu_rt_runtime=self.cpu_rt_runtime,
+                 security_opt=self.security_opt,
+                 environment=self.environment,
+diff -ruN a/usr/src/supervisor/supervisor/docker/audio.py b/usr/src/supervisor/supervisor/docker/audio.py
+--- a/usr/src/supervisor/supervisor/docker/audio.py	2026-01-03 21:27:15
++++ b/usr/src/supervisor/supervisor/docker/audio.py	2026-01-05 11:29:39
+@@ -92,6 +92,8 @@
+         concurrency=JobConcurrency.GROUP_REJECT,
+     )
+     async def run(self) -> None:
++        _LOGGER.warning("ulimits arg omitted for container %s", AUDIO_DOCKER_NAME)
++
+         """Run Docker image."""
+         await self._run(
+             tag=str(self.sys_plugins.audio.version),
+@@ -102,7 +104,7 @@
+             detach=True,
+             cap_add=self.capabilities,
+             security_opt=self.security_opt,
+-            ulimits=self.ulimits,
++            #ulimits=self.ulimits,
+             cpu_rt_runtime=self.cpu_rt_runtime,
+             device_cgroup_rules=self.cgroups_rules,
+             environment={
+diff -ruN a/usr/src/supervisor/supervisor/docker/manager.py b/usr/src/supervisor/supervisor/docker/manager.py
+--- a/usr/src/supervisor/supervisor/docker/manager.py	2026-01-03 21:27:15
++++ b/usr/src/supervisor/supervisor/docker/manager.py	2026-01-05 11:29:48
+@@ -442,8 +442,10 @@
+             # default timeout to make sure CoreDNS fallback is working
+             # on first query.
+             host_config["DnsOptions"] = ["timeout:10"]
+-            if hostname:
+-                config["Domainname"] = DNS_SUFFIX
++            
++            _LOGGER.warning("Skip --domainname arg for rootless compatibility")
++            # if hostname:
++            #     config["Domainname"] = DNS_SUFFIX
+ 
+         # Setup ports
+         if ports:
+diff -ruN a/usr/src/supervisor/supervisor/jobs/decorator.py b/usr/src/supervisor/supervisor/jobs/decorator.py
+--- a/usr/src/supervisor/supervisor/jobs/decorator.py	2026-01-03 21:27:15
++++ b/usr/src/supervisor/supervisor/jobs/decorator.py	2026-01-05 11:29:39
+@@ -339,9 +339,12 @@
+             )
+ 
+         if JobCondition.HEALTHY in used_conditions and not coresys.sys_core.healthy:
+-            raise JobConditionException(
+-                f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)}"
++            _LOGGER.error(
++                 f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)} (ignored)"
+             )
++            # raise JobConditionException(
++            #     f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)}"
++            # )
+ 
+         if (
+             JobCondition.RUNNING in used_conditions
+diff -ruN a/usr/src/supervisor/supervisor/resolution/evaluate.py b/usr/src/supervisor/supervisor/resolution/evaluate.py
+--- a/usr/src/supervisor/supervisor/resolution/evaluate.py	2026-01-03 21:27:15
++++ b/usr/src/supervisor/supervisor/resolution/evaluate.py	2026-01-05 11:29:39
+@@ -14,7 +14,7 @@
+ 
+ UNHEALTHY = [
+     UnsupportedReason.LXC,
+-    UnsupportedReason.PRIVILEGED,
++    # UnsupportedReason.PRIVILEGED,
+ ]
+ 
+ 

@@ -3,62 +3,72 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SUPERVISOR_DIR="${ROOT_DIR}/supervisor"
-STABLE_URL="https://raw.githubusercontent.com/home-assistant/version/refs/heads/master/stable.json"
-PATCH_FILE="${ROOT_DIR}/rootfs/patches/hassio-supervisor.patch"
-
-if ! command -v curl >/dev/null 2>&1; then
-  echo "error: curl is required" >&2
-  exit 1
-fi
-
-if ! command -v jq >/dev/null 2>&1; then
-  echo "error: jq is required" >&2
-  exit 1
-fi
-
-if [[ ! -d "${SUPERVISOR_DIR}" ]]; then
-  echo "error: supervisor directory not found at ${SUPERVISOR_DIR}" >&2
-  exit 1
-fi
-
-if ! git -C "${SUPERVISOR_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  echo "error: ${SUPERVISOR_DIR} is not a git work tree" >&2
-  exit 1
-fi
+PATCH_DIR="${ROOT_DIR}/rootfs/patches/supervisor"
+SUPERVISOR_IMAGE="ghcr.io/home-assistant/amd64-hassio-supervisor:latest"
 
 apply_patch() {
-  if [[ ! -f "${PATCH_FILE}" ]]; then
-    echo "patch file not found at ${PATCH_FILE}; skipping" >&2
+  if [[ ! -d "${PATCH_DIR}" ]]; then
+    echo "patch directory not found at ${PATCH_DIR}; skipping" >&2
     return 0
   fi
 
-  if [[ ! -s "${PATCH_FILE}" ]]; then
-    echo "patch file is empty; skipping" >&2
+  local patches=()
+  if [[ "$#" -gt 0 ]]; then
+    for name in "$@"; do
+      local patch="${PATCH_DIR}/${name}"
+      if [[ "${patch}" != *.patch ]]; then
+        patch="${patch}.patch"
+      fi
+      patches+=("${patch}")
+    done
+  else
+    shopt -s nullglob
+    patches=("${PATCH_DIR}"/*.patch)
+    shopt -u nullglob
+  fi
+
+  if [[ "${#patches[@]}" -eq 0 ]]; then
+    echo "no patch files found in ${PATCH_DIR}; skipping" >&2
     return 0
   fi
 
-  if git -C "${SUPERVISOR_DIR}" apply -p4 --check "${PATCH_FILE}" >/dev/null 2>&1; then
-    git -C "${SUPERVISOR_DIR}" apply -p4 "${PATCH_FILE}"
-    echo "Applied patch from ${PATCH_FILE}"
-    return 0
-  fi
+  for patch in "${patches[@]}"; do
+    if [[ ! -s "${patch}" ]]; then
+      echo "patch file is empty; skipping ${patch}" >&2
+      continue
+    fi
 
-  echo "Patch does not apply cleanly; skipping" >&2
-  return 0
+    if patch -d "${SUPERVISOR_DIR}" -p1 --dry-run < "${patch}"; then
+      patch -d "${SUPERVISOR_DIR}" -p1 < "${patch}"
+      echo "Applied patch from ${patch}"
+      continue
+    fi
+
+    echo "Patch does not apply cleanly; skipping ${patch}" >&2
+  done
 }
 
-supervisor_tag=$(curl -fsSL "${STABLE_URL}" | jq -r '.supervisor')
-if [[ -z "${supervisor_tag}" || "${supervisor_tag}" == "null" ]]; then
-  echo "error: supervisor tag missing in stable.json" >&2
+mkdir -p "${SUPERVISOR_DIR}"
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "error: docker is required" >&2
+  exit 1
+fi
+if ! command -v patch >/dev/null 2>&1; then
+  echo "error: patch is required" >&2
   exit 1
 fi
 
-echo "Using supervisor tag: ${supervisor_tag}"
+echo "Pulling supervisor image: ${SUPERVISOR_IMAGE}"
+docker pull "${SUPERVISOR_IMAGE}" >/dev/null
 
-git -C "${SUPERVISOR_DIR}" fetch --tags origin
+CONTAINER_ID="$(docker create "${SUPERVISOR_IMAGE}")"
+trap 'docker rm -f "${CONTAINER_ID}" >/dev/null 2>&1 || true' EXIT
 
-git -C "${SUPERVISOR_DIR}" checkout "refs/tags/${supervisor_tag}"
+rm -rf "${SUPERVISOR_DIR}"/*
+echo "Extracting supervisor filesystem to ${SUPERVISOR_DIR}"
+docker export "${CONTAINER_ID}" | tar -C "${SUPERVISOR_DIR}" -xf -
 
-apply_patch
+apply_patch "$@"
 
-echo "Supervisor submodule now at: $(git -C "${SUPERVISOR_DIR}" rev-parse --short HEAD)"
+echo "Supervisor filesystem unpacked into ${SUPERVISOR_DIR}"

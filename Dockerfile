@@ -45,38 +45,11 @@ FROM scratch
 
 COPY --from=builder /rootfs/ /
 
-ADD ./rootfs/entrypoint.sh /
-ADD ./rootfs /rootfs-add
-
-RUN rm -f \
-  /lib/systemd/system/sockets.target.wants/*udev* \
-  /lib/systemd/system/sockets.target.wants/*initctl* \
-  /lib/systemd/system/local-fs.target.wants/* \
-  /etc/systemd/system/local-fs.target.wants/* \
-  /lib/systemd/system/sysinit.target.wants/systemd-tmpfiles-setup* \
-  /etc/systemd/system/etc-resolv.conf.mount \
-  /etc/systemd/system/etc-hostname.mount \
-  /etc/systemd/system/etc-hosts.mount
-
-
-RUN systemctl mask -- \
-  tmp.mount \
-  etc-hostname.mount \
-  etc-hosts.mount \
-  etc-resolv.conf.mount \
-  swap.target \
-  getty.target \
-  getty-static.service \
-  dev-mqueue.mount \
-  cgproxy.service \
-  systemd-tmpfiles-setup-dev.service \
-  systemd-remount-fs.service \
-  systemd-ask-password-wall.path \
-  sleep.target suspend.target hibernate.target hybrid-sleep.target ModemManager.service
-
 ADD ./rootfs /
-STOPSIGNAL SIGRTMIN+3
 
+VOLUME [ "/mnt/data" ]
+
+STOPSIGNAL SIGRTMIN+3
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD [ "/sbin/init" ]

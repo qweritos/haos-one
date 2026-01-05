@@ -2,7 +2,7 @@
 set -eu
 
 CONTAINER_NAME="hassio_supervisor"
-PATCH_FILE="/patches/hassio-supervisor.patch"
+PATCH_DIR="/patches/supervisor"
 PATCH_IMAGE="busybox:1.36"
 
 log() {
@@ -10,8 +10,14 @@ log() {
 }
 
 apply_patch() {
-  if [ ! -f "$PATCH_FILE" ]; then
-    log "patch file not found at $PATCH_FILE"
+  if [ ! -d "$PATCH_DIR" ]; then
+    log "patch directory not found at $PATCH_DIR"
+    return 0
+  fi
+
+  set -- "$PATCH_DIR"/*.patch
+  if [ "$1" = "$PATCH_DIR/*.patch" ]; then
+    log "no patch files found in $PATCH_DIR"
     return 0
   fi
 
@@ -32,20 +38,30 @@ apply_patch() {
     return 0
   fi
 
+  checksum="$(printf '%s\n' "$PATCH_DIR"/*.patch | sort | while read -r patch; do sha256sum "$patch"; done | sha256sum | cut -d ' ' -f1)"
   if [ -f "$ROOT_DIR/patched" ]; then
-    log "container already patched $CONTAINER_NAME"
-    return 0
+    applied_checksum="$(cat "$ROOT_DIR/patched" 2>/dev/null || true)"
+    if [ "$applied_checksum" = "$checksum" ]; then
+      log "patches already applied for $CONTAINER_NAME"
+      return 0
+    fi
+    log "patch checksum mismatch for $CONTAINER_NAME; removing container"
+    if ! docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1; then
+      log "failed to remove $CONTAINER_NAME"
+    fi
+    exit 1
   fi
 
   docker run --rm \
     -v "$ROOT_DIR":/rootfs \
-    -v "$PATCH_FILE":/patches/hassio-supervisor.patch:ro \
+    -v "$PATCH_DIR":/patches:ro \
     "$PATCH_IMAGE" sh -c \
-    'cd /rootfs && busybox patch -N -p1 -i /patches/hassio-supervisor.patch && touch /rootfs/patched' || {
+    'cd /rootfs && for patch in /patches/*.patch; do busybox patch -N -p1 -i "$patch" || exit 1; done' || {
       log "patch failed; consider restarting hassos-supervisor.service"
       return 0
     }
 
+  printf '%s\n' "$checksum" > "$ROOT_DIR/patched"
   if ! docker restart "$CONTAINER_NAME" >/dev/null 2>&1; then
     log "failed to restart $CONTAINER_NAME"
   fi
