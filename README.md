@@ -54,6 +54,45 @@ Wait for http://localhost:8123 to be available. Now you can create new House or 
 
 > First startup can take a while as it pulls all required images — please be patient.
 
+## Migration from deprecated Supervised installation method
+
+### Method 1: Backup restore
+
+- Create a full backup in your existing install (Settings → System → Backups).
+- Download the backup to your host.
+- Start this container and restore the backup during onboarding.
+- Confirm add-ons and integrations come back after restore.
+
+### Method 2: Manual `/config` copy via host
+
+> All commands to be executed from host
+
+Get your `/config` contents from existing `homeassistant` container:
+
+```bash
+docker cp homeassistant:/config/ ./old-config/
+```
+
+then, push it to new instance:
+
+> ⚠️ This overwrites all existing data in the target instance
+
+```bash
+tar -C ./old-config -cf - . | docker exec -i haos sh -c '
+  docker exec -i homeassistant sh -c "
+    find /config -mindepth 1 -delete &&
+    tar -C /config -xf - &&
+    chown -R root:root /config
+  "
+'
+```
+
+Finally, restart Home Assistant:
+
+```bash
+docker exec -it haos systemctl restart docker
+```
+
 ## Recipes
 
 - Host networking (best for autodiscovery):
