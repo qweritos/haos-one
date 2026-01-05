@@ -63,31 +63,26 @@ Wait for http://localhost:8123 to be available. Now you can create new House or 
 - Start this container and restore the backup during onboarding.
 - Confirm add-ons and integrations come back after restore.
 
-### Method 2: Manual `/config` copy via host
+### Method 2: Manual `/usr/share/hassio` copy via host
+
+Making consistent 1:1 clone of your HA instance.
 
 > All commands to be executed from host
 
-Get your `/config` contents from existing `homeassistant` container:
+Get your `/usr/share/hassio` contents from existing Supervised installation:
 
 ```bash
-docker cp homeassistant:/config/ ./old-config/
+cp -r /usr/share/hassio ./old-config
 ```
 
 then, push it to new instance:
 
-> ⚠️ This overwrites all existing data in the target instance
-
 ```bash
-tar -C ./old-config -cf - . | docker exec -i haos sh -c '
-  docker exec -i homeassistant sh -c "
-    find /config -mindepth 1 -delete &&
-    tar -C /config -xf - &&
-    chown -R root:root /config
-  "
-'
+docker exec -it haos sh -c 'mv /mnt/data/supervisor /mnt/data/supervisor.bak && mkdir -p /mnt/data/supervisor'
+docker cp ./old-config/. haos:/mnt/data/supervisor/
 ```
 
-Finally, restart Home Assistant:
+Finally, restart all Home Assistant containers:
 
 ```bash
 docker exec -it haos systemctl restart docker
