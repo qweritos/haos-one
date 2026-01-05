@@ -42,6 +42,10 @@ Simple as one command:
 docker run --name haos -ti --privileged -p 8123:8123 -v ./data:/mnt/data qweritos/haos-one
 ```
 
+<p align="">
+  <img alt="Intro" src="docs/assets/intro.webp" />
+</p>
+
 Your persistence (configuration and other data) is stored in `./data/`.
 
 Replace `-p 8123:8123` with `--network host` if you want host networking (required for autodiscovery features).
