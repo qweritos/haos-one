@@ -30,7 +30,7 @@
 - Avoid VM performance overhead and hypervisor complexity.
 - Use host hardware (like USB devices) directly without passthrough.
 - Use host networking for service autodiscovery, simpler routing, and lower latency.
-- __x86-64__ and __ARM__ images available.
+- __x86_64__ and __aarch64__ images available.
 - Rootless containers support (experimental)
 - Kubernetes? Sure. [Helm chart included](./charts/haos-one).
 
@@ -85,8 +85,9 @@ See [docs](docs) for details.
 | OS                             | Arch   | Env                                                         | Status | Notes                |
 | ------------------------------ | ------ | ----------------------------------------------------------- | ------ | -------------------- |
 | macOS 15.6 (24G84)             | x86_64 | Docker Desktop 4.55.0, Docker Engine 29.1.3 (client/server) | ✅     | AppArmor unavailable; use named volume (see [Recipes](#recipes)). |
-| Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server)                        | ✅     | —                    |
-| Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server) __rootless__                        | ✅     | —                    |
+| Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server) <br />*(rootless & rootfull)*                        | ✅     | —                    |
+| Ubuntu 25.10 (Questing Quokka) | x86_64 | Podman 5.4.2                                                | ✅     | —                    |
+| Armbian OS 25.02.0 (bullseye) | aarch64 | Docker Engine 28.0.0 (client/server) | ✅ | — |
 
 ## Known Issues
 
