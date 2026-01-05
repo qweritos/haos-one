@@ -1,0 +1,13 @@
+diff --git a/usr/src/supervisor/supervisor/__main__.py b/usr/src/supervisor/supervisor/__main__.py
+index 686e83f09..b85d297ff 100644
+--- a/usr/src/supervisor/supervisor/__main__.py
++++ b/usr/src/supervisor/supervisor/__main__.py
+@@ -37,6 +37,8 @@ def run_os_startup_check_cleanup() -> None:
+ # pylint: disable=invalid-name
+ if __name__ == "__main__":
+     bootstrap.initialize_logging()
++    
++    _LOGGER.warning("Patched supervisor. for reference: https://github.com/qweritos/haos-one")
+ 
+     # Init async event loop
+     loop = asyncio.new_event_loop()

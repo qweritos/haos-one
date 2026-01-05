@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SUPERVISOR_DIR="${ROOT_DIR}/supervisor"
 STABLE_URL="https://raw.githubusercontent.com/home-assistant/version/refs/heads/master/stable.json"
-PATCH_FILE="${ROOT_DIR}/rootfs/patches/hassio-supervisor.patch"
+PATCH_DIR="${ROOT_DIR}/rootfs/patches/supervisor"
 
 if ! command -v curl >/dev/null 2>&1; then
   echo "error: curl is required" >&2
@@ -27,24 +27,34 @@ if ! git -C "${SUPERVISOR_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1;
 fi
 
 apply_patch() {
-  if [[ ! -f "${PATCH_FILE}" ]]; then
-    echo "patch file not found at ${PATCH_FILE}; skipping" >&2
+  if [[ ! -d "${PATCH_DIR}" ]]; then
+    echo "patch directory not found at ${PATCH_DIR}; skipping" >&2
     return 0
   fi
 
-  if [[ ! -s "${PATCH_FILE}" ]]; then
-    echo "patch file is empty; skipping" >&2
+  shopt -s nullglob
+  local patches=("${PATCH_DIR}"/*.patch)
+  shopt -u nullglob
+
+  if [[ "${#patches[@]}" -eq 0 ]]; then
+    echo "no patch files found in ${PATCH_DIR}; skipping" >&2
     return 0
   fi
 
-  if git -C "${SUPERVISOR_DIR}" apply -p4 --check "${PATCH_FILE}" >/dev/null 2>&1; then
-    git -C "${SUPERVISOR_DIR}" apply -p4 "${PATCH_FILE}"
-    echo "Applied patch from ${PATCH_FILE}"
-    return 0
-  fi
+  for patch in "${patches[@]}"; do
+    if [[ ! -s "${patch}" ]]; then
+      echo "patch file is empty; skipping ${patch}" >&2
+      continue
+    fi
 
-  echo "Patch does not apply cleanly; skipping" >&2
-  return 0
+    if git -C "${SUPERVISOR_DIR}" apply -p4 --check "${patch}" >/dev/null 2>&1; then
+      git -C "${SUPERVISOR_DIR}" apply -p4 "${patch}"
+      echo "Applied patch from ${patch}"
+      continue
+    fi
+
+    echo "Patch does not apply cleanly; skipping ${patch}" >&2
+  done
 }
 
 supervisor_tag=$(curl -fsSL "${STABLE_URL}" | jq -r '.supervisor')

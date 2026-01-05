@@ -1,21 +1,17 @@
-diff --git a/usr/src/supervisor/supervisor/__main__.py b/usr/src/supervisor/supervisor/__main__.py
-index 686e83f09..b85d297ff 100644
---- a/usr/src/supervisor/supervisor/__main__.py
-+++ b/usr/src/supervisor/supervisor/__main__.py
-@@ -37,6 +37,8 @@ def run_os_startup_check_cleanup() -> None:
- # pylint: disable=invalid-name
- if __name__ == "__main__":
-     bootstrap.initialize_logging()
-+    
-+    _LOGGER.warning("Patched supervisor. for reference: https://github.com/qweritos/hass-supervised-docker")
- 
-     # Init async event loop
-     loop = asyncio.new_event_loop()
 diff --git a/usr/src/supervisor/supervisor/docker/addon.py b/usr/src/supervisor/supervisor/docker/addon.py
-index 89b7de740..94bed3194 100644
+index 89b7de740..9ee66940e 100644
 --- a/usr/src/supervisor/supervisor/docker/addon.py
 +++ b/usr/src/supervisor/supervisor/docker/addon.py
-@@ -597,7 +597,7 @@ class DockerAddon(DockerInterface):
+@@ -581,6 +581,8 @@ class DockerAddon(DockerInterface):
+         # Don't set a hostname if no separate UTS namespace is used
+         hostname = None if self.uts_mode else self.addon.hostname
+ 
++        _LOGGER.warning("ulimits arg omitted for addon %s", self.addon.name)
++        
+         # Create & Run container
+         try:
+             await self._run(
+@@ -597,7 +599,7 @@ class DockerAddon(DockerInterface):
                  extra_hosts=self.network_mapping,
                  device_cgroup_rules=self.cgroups_rules,
                  cap_add=self.capabilities,
@@ -25,10 +21,19 @@ index 89b7de740..94bed3194 100644
                  security_opt=self.security_opt,
                  environment=self.environment,
 diff --git a/usr/src/supervisor/supervisor/docker/audio.py b/usr/src/supervisor/supervisor/docker/audio.py
-index 570ab18c0..8a60b25ec 100644
+index 570ab18c0..99c161659 100644
 --- a/usr/src/supervisor/supervisor/docker/audio.py
 +++ b/usr/src/supervisor/supervisor/docker/audio.py
-@@ -103,7 +103,7 @@ class DockerAudio(DockerInterface, CoreSysAttributes):
+@@ -93,6 +93,8 @@ class DockerAudio(DockerInterface, CoreSysAttributes):
+         concurrency=JobConcurrency.GROUP_REJECT,
+     )
+     async def run(self) -> None:
++        _LOGGER.warning("ulimits arg omitted for container %s", AUDIO_DOCKER_NAME)
++        
+         """Run Docker image."""
+         await self._run(
+             tag=str(self.sys_plugins.audio.version),
+@@ -103,7 +105,7 @@ class DockerAudio(DockerInterface, CoreSysAttributes):
              detach=True,
              cap_add=self.capabilities,
              security_opt=self.security_opt,
@@ -56,21 +61,21 @@ index cb065f9f4..ad3203ecd 100644
          # Setup network
          if not network_mode:
 diff --git a/usr/src/supervisor/supervisor/jobs/decorator.py b/usr/src/supervisor/supervisor/jobs/decorator.py
-index c1d890797..b0352fa89 100644
+index c1d890797..0f8aa23d7 100644
 --- a/usr/src/supervisor/supervisor/jobs/decorator.py
 +++ b/usr/src/supervisor/supervisor/jobs/decorator.py
-@@ -338,10 +338,10 @@ class Job(CoreSysAttributes):
-                 ignored_conditions,
+@@ -339,9 +339,12 @@ class Job(CoreSysAttributes):
              )
  
--        if JobCondition.HEALTHY in used_conditions and not coresys.sys_core.healthy:
+         if JobCondition.HEALTHY in used_conditions and not coresys.sys_core.healthy:
 -            raise JobConditionException(
 -                f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)}"
--            )
-+        # if JobCondition.HEALTHY in used_conditions and not coresys.sys_core.healthy:
-+        #     raise JobConditionException(
-+        #         f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)}"
-+        #     )
++            _LOGGER.error(
++                 f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)} (ignored)"
+             )
++            # raise JobConditionException(
++            #     f"'{method_name}' blocked from execution, system is not healthy - {', '.join(coresys.sys_resolution.unhealthy)}"
++            # )
  
          if (
              JobCondition.RUNNING in used_conditions

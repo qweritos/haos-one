@@ -1,0 +1,33 @@
+diff --git a/usr/src/supervisor/supervisor/dbus/network/__init__.py b/usr/src/supervisor/supervisor/dbus/network/__init__.py
+index 0c12bfc9d..a00e64a4b 100644
+--- a/usr/src/supervisor/supervisor/dbus/network/__init__.py
++++ b/usr/src/supervisor/supervisor/dbus/network/__init__.py
+@@ -244,6 +244,7 @@ class NetworkManager(DBusInterfaceProxy):
+                 interface.type
+                 not in [
+                     DeviceType.ETHERNET,
++                    DeviceType.VETH,
+                     DeviceType.WIRELESS,
+                     DeviceType.VLAN,
+                 ]
+diff --git a/usr/src/supervisor/supervisor/host/configuration.py b/usr/src/supervisor/supervisor/host/configuration.py
+index 40f152df3..7f163ff8c 100644
+--- a/usr/src/supervisor/supervisor/host/configuration.py
++++ b/usr/src/supervisor/supervisor/host/configuration.py
+@@ -139,6 +139,7 @@ class Interface:
+ 
+         if (self.type, inet.type) not in [
+             (InterfaceType.ETHERNET, DeviceType.ETHERNET),
++            (InterfaceType.ETHERNET, DeviceType.VETH),
+             (InterfaceType.WIRELESS, DeviceType.WIRELESS),
+         ]:
+             return False
+@@ -324,7 +325,7 @@ class Interface:
+     @staticmethod
+     def _map_nm_type(device_type: int) -> InterfaceType:
+         match device_type:
+-            case DeviceType.ETHERNET.value:
++            case DeviceType.ETHERNET.value | DeviceType.VETH.value:
+                 return InterfaceType.ETHERNET
+             case DeviceType.WIRELESS.value:
+                 return InterfaceType.WIRELESS

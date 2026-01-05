@@ -3,8 +3,14 @@ set -euo pipefail
 
 ROOT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SUPERVISOR_DIR="${ROOT_DIR}/supervisor"
-PATCH_FILE="${ROOT_DIR}/rootfs/patches/hassio-supervisor.patch"
+PATCH_DIR="${ROOT_DIR}/rootfs/patches/supervisor"
 TARGET_DIR="/usr/src/supervisor"
+PATCH_NAME="${1:-hassio-supervisor.patch}"
+PATCH_FILE="${PATCH_DIR}/${PATCH_NAME}"
+
+if [[ "${PATCH_NAME}" != *.patch ]]; then
+  PATCH_FILE="${PATCH_FILE}.patch"
+fi
 
 if [[ ! -d "${SUPERVISOR_DIR}" ]]; then
   echo "error: supervisor directory not found at ${SUPERVISOR_DIR}; update git submodules." >&2
@@ -16,7 +22,7 @@ if ! git -C "${SUPERVISOR_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1;
   exit 1
 fi
 
-mkdir -p "$(dirname "${PATCH_FILE}")"
+mkdir -p "${PATCH_DIR}"
 
 if ! git -C "${SUPERVISOR_DIR}" diff --quiet HEAD --; then
   git -C "${SUPERVISOR_DIR}" diff --binary \

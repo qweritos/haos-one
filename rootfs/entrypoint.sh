@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+# todo: make it configurable
+echo UTC > /etc/timezone
+
 # mkdir -p /mnt/data
 # if [ ! -e /data/data.img ]; then
 #   size="${DATA_IMG_SIZE:-3G}"
@@ -17,9 +20,9 @@ set -eu
 # losetup "$loopdev" /data/data.img
 # mount -t xfs "$loopdev" /mnt/data
 
-mount --make-rshared /
-mount --make-rshared /mnt/data
+# mount --make-rshared /mnt/data
 
+# make rauc to start
 if [ -x /usr/bin/grub-editenv ]; then
   mkdir -p /mnt/boot/EFI/BOOT
   if [ ! -f /mnt/boot/EFI/BOOT/grubenv ]; then
@@ -29,14 +32,7 @@ if [ -x /usr/bin/grub-editenv ]; then
   grub-editenv /mnt/boot/EFI/BOOT/grubenv set A_TRY=0
   grub-editenv /mnt/boot/EFI/BOOT/grubenv set ORDER="A B"
   grub-editenv /mnt/boot/EFI/BOOT/grubenv set B_OK=1
+  grub-editenv /mnt/boot/EFI/BOOT/grubenv set B_TRY=0
 fi
-
-mkdir -p /etc/systemd/system/rauc.service.d
-cat > /etc/systemd/system/rauc.service.d/override.conf <<'EOF'
-[Service]
-ExecStart=
-ExecStart=/usr/bin/rauc --mount=/run/rauc/mnt --override-boot-slot=A service
-EOF
-
 
 exec "$@"

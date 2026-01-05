@@ -4,5 +4,5 @@ data/*
 
 !.keep
 
-hass-os
-supervisor
+/hass-os
+/supervisor
