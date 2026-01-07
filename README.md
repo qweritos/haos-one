@@ -46,8 +46,6 @@ docker run --name haos -ti --privileged -p 8123:8123 qweritos/haos-one
   <img alt="Intro" src="docs/assets/intro.webp" />
 </p>
 
-Your persistence (configuration and other data) is stored in `./data/`.
-
 Replace `-p 8123:8123` with `--network host` if you want host networking (required for autodiscovery features).
 
 Wait for http://localhost:8123 to be available. Now you can create new House or restore from existing backup.

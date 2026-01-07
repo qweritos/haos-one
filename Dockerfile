@@ -47,11 +47,11 @@ COPY --from=builder /rootfs/ /
 
 ADD ./rootfs /
 
-VOLUME [ "/mnt/data" ]
-
-STOPSIGNAL SIGRTMIN+3
-
 RUN rm /etc/resolv.conf; touch /etc/resolv.conf
+
+VOLUME [ "/mnt/data" ]
+EXPOSE 8123
+STOPSIGNAL SIGRTMIN+3
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["/sbin/init"]

@@ -71,6 +71,70 @@
       },
       "required": ["enabled", "type", "port"]
     },
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable ingress.",
+          "default": false
+        },
+        "className": {
+          "type": "string",
+          "description": "Ingress class name.",
+          "default": ""
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Ingress annotations.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        },
+        "hosts": {
+          "type": "array",
+          "description": "Ingress hosts and paths.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "paths": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "pathType": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["path", "pathType"]
+                }
+              }
+            },
+            "required": ["host", "paths"]
+          },
+          "default": []
+        },
+        "tls": {
+          "type": "array",
+          "description": "Ingress TLS configuration.",
+          "items": {
+            "type": "object"
+          },
+          "default": []
+        }
+      },
+      "required": ["enabled", "className", "annotations", "hosts", "tls"]
+    },
     "persistence": {
       "type": "object",
       "additionalProperties": false,
@@ -188,6 +252,7 @@
     "fullnameOverride",
     "hostNetwork",
     "service",
+    "ingress",
     "persistence",
     "securityContext",
     "apparmor",

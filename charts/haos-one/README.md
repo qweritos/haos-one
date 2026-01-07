@@ -22,6 +22,11 @@ helm install haos-one ./charts/haos-one
 | `service.enabled` | Create a Service | `true` |
 | `service.type` | Service type | `ClusterIP` |
 | `service.port` | Service port | `8123` |
+| `ingress.enabled` | Enable ingress | `false` |
+| `ingress.className` | Ingress class name | empty |
+| `ingress.annotations` | Ingress annotations | `{}` |
+| `ingress.hosts` | Ingress hosts and paths | `[{host: haos.local, paths: [{path: /, pathType: Prefix}]}]` |
+| `ingress.tls` | Ingress TLS config | `[]` |
 | `persistence.enabled` | Mount `/mnt/data` | `true` |
 | `persistence.mountPath` | Data mount path | `/mnt/data` |
 | `persistence.accessMode` | PVC access mode | `ReadWriteOnce` |
