@@ -39,7 +39,7 @@
 Simple as one command:
 
 ```
-docker run --name haos -ti --privileged -p 8123:8123 -v ./data:/mnt/data qweritos/haos-one
+docker run --name haos -ti --privileged -p 8123:8123 qweritos/haos-one
 ```
 
 <p align="">
@@ -92,7 +92,11 @@ docker exec -it haos systemctl restart docker
 
 - Host networking (best for autodiscovery):
   ```
-  docker run --name haos -ti --privileged --network host -v ./data:/mnt/data qweritos/haos-one
+  docker run --name haos -ti --privileged --network host qweritos/haos-one
+  ```
+- to make your data persistent, mount a volume into container's path `/mnt/data`
+  ```
+    docker run --name haos -ti --privileged -p 8123:8123 -v ./data:/mnt/data qweritos/haos-one
   ```
 - macOS: use a named volume (overlay2 feature gaps with bind mounts):
   ```
