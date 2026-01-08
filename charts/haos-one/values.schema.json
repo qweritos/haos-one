@@ -135,6 +135,53 @@
       },
       "required": ["enabled", "className", "annotations", "hosts", "tls"]
     },
+    "serviceMonitor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Enable a ServiceMonitor for Prometheus.",
+          "default": false
+        },
+        "interval": {
+          "type": "string",
+          "description": "Scrape interval.",
+          "default": "30s"
+        },
+        "scrapeTimeout": {
+          "type": "string",
+          "description": "Scrape timeout.",
+          "default": "10s"
+        },
+        "scheme": {
+          "type": "string",
+          "description": "Metrics scheme.",
+          "default": "http"
+        },
+        "honorLabels": {
+          "type": "boolean",
+          "description": "Honor labels from the target.",
+          "default": false
+        },
+        "labels": {
+          "type": "object",
+          "description": "Labels added to the ServiceMonitor.",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {}
+        }
+      },
+      "required": [
+        "enabled",
+        "interval",
+        "scrapeTimeout",
+        "scheme",
+        "honorLabels",
+        "labels"
+      ]
+    },
     "persistence": {
       "type": "object",
       "additionalProperties": false,
@@ -142,7 +189,7 @@
         "enabled": {
           "type": "boolean",
           "description": "Enable persistence.",
-          "default": true
+          "default": false
         },
         "mountPath": {
           "type": "string",

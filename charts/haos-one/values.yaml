@@ -1,14 +1,9 @@
 replicaCount: 1
 
-# image:
-#   repository: qweritos/haos-one
-#   tag: latest
-#   pullPolicy: IfNotPresent
-
 image:
-  pullPolicy: Always
-  repository: registry.andrey.wtf/haos
+  repository: qweritos/haos-one
   tag: latest
+  pullPolicy: IfNotPresent
 
 nameOverride: ""
 fullnameOverride: ""
@@ -31,8 +26,17 @@ ingress:
           pathType: Prefix
   tls: []
 
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+  scheme: http
+  honorLabels: false
+  labels:
+    release: kube-prometheus-stack
+
 persistence:
-  enabled: true
+  enabled: false
   mountPath: /mnt/data
   accessMode: ReadWriteOnce
   size: 10Gi
