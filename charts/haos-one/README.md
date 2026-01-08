@@ -27,7 +27,14 @@ helm install haos-one ./charts/haos-one
 | `ingress.annotations` | Ingress annotations | `{}` |
 | `ingress.hosts` | Ingress hosts and paths | `[{host: haos.local, paths: [{path: /, pathType: Prefix}]}]` |
 | `ingress.tls` | Ingress TLS config | `[]` |
-| `persistence.enabled` | Mount `/mnt/data` | `true` |
+| `serviceMonitor.enabled` | Enable ServiceMonitor | `false` |
+| `serviceMonitor.interval` | Scrape interval | `30s` |
+| `serviceMonitor.scrapeTimeout` | Scrape timeout | `10s` |
+| `serviceMonitor.path` | Metrics path | `/api/prometheus` |
+| `serviceMonitor.scheme` | Metrics scheme | `http` |
+| `serviceMonitor.honorLabels` | Honor labels from target | `false` |
+| `serviceMonitor.labels` | ServiceMonitor labels | `{release: kube-prometheus-stack}` |
+| `persistence.enabled` | Mount `/mnt/data` | `false` |
 | `persistence.mountPath` | Data mount path | `/mnt/data` |
 | `persistence.accessMode` | PVC access mode | `ReadWriteOnce` |
 | `persistence.hostPath` | Use hostPath instead of PVC | empty |
