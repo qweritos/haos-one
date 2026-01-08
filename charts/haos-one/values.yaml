@@ -30,7 +30,6 @@ serviceMonitor:
   enabled: false
   interval: 30s
   scrapeTimeout: 10s
-  path: /api/prometheus
   scheme: http
   honorLabels: false
   labels:
