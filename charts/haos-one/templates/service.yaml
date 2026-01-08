@@ -8,9 +8,9 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - name: http
+    - name: {{ include "haos-one.servicePortName" . }}
       port: {{ .Values.service.port }}
-      targetPort: http
+      targetPort: {{ include "haos-one.servicePortName" . }}
       protocol: TCP
   selector:
     app.kubernetes.io/name: {{ include "haos-one.name" . }}

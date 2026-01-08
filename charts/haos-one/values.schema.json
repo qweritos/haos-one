@@ -154,11 +154,6 @@
           "description": "Scrape timeout.",
           "default": "10s"
         },
-        "path": {
-          "type": "string",
-          "description": "Metrics path.",
-          "default": "/api/prometheus"
-        },
         "scheme": {
           "type": "string",
           "description": "Metrics scheme.",
@@ -182,7 +177,6 @@
         "enabled",
         "interval",
         "scrapeTimeout",
-        "path",
         "scheme",
         "honorLabels",
         "labels"

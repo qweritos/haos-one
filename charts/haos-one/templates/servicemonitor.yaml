@@ -17,8 +17,8 @@ spec:
     matchNames:
       - {{ .Release.Namespace }}
   endpoints:
-    - port: http
-      path: {{ .Values.serviceMonitor.path }}
+    - port: {{ include "haos-one.servicePortName" . }}
+      path: /api/prometheus
       scheme: {{ .Values.serviceMonitor.scheme }}
       interval: {{ .Values.serviceMonitor.interval }}
       scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
