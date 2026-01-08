@@ -30,6 +30,7 @@ helm install haos-one oci://registry.andrey.wtf/helm/haos-one
 | `serviceMonitor.enabled` | Enable ServiceMonitor | `false` |
 | `serviceMonitor.interval` | Scrape interval | `30s` |
 | `serviceMonitor.scrapeTimeout` | Scrape timeout | `10s` |
+| `serviceMonitor.path` | Metrics path | `/api/prometheus` |
 | `serviceMonitor.scheme` | Metrics scheme | `http` |
 | `serviceMonitor.honorLabels` | Honor labels from target | `false` |
 | `serviceMonitor.labels` | ServiceMonitor labels | `{release: kube-prometheus-stack}` |
