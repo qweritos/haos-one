@@ -60,6 +60,14 @@ Install from the OCI registry:
 helm install haos-one oci://registry.andrey.wtf/helm/haos-one
 ```
 
+Or install from the local chart:
+
+```bash
+helm install haos-one ./charts/haos-one
+```
+
+Values and configuration options: see [`charts/haos-one/README.md`](charts/haos-one/README.md).
+
 ## Migration from deprecated Supervised installation method
 
 ### Method 1: Backup restore

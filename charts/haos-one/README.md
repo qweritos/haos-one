@@ -51,7 +51,7 @@ helm install haos-one oci://registry.andrey.wtf/helm/haos-one
 ## Example
 
 ```
-helm install haos-one ./charts/haos-one \
+helm install haos-one oci://registry.andrey.wtf/helm/haos-one \
   --set hostNetwork=true \
   --set persistence.hostPath=/var/lib/haos-one
 ```
