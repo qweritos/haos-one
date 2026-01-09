@@ -21,6 +21,17 @@ jobs:
         with:
           version: v3.14.4
 
+      - name: Install GnuPG
+        run: sudo apt-get update && sudo apt-get install -y gnupg
+
+      - name: Import signing key
+        run: |
+          echo "${ANDREYWTF_GPG_PRIVATE_KEY}" | gpg --batch --import
+          gpg --export-secret-keys --output ./helm-secret.gpg "${ANDREYWTF_GPG_KEY_ID}"
+        env:
+          ANDREYWTF_GPG_PRIVATE_KEY: ${{ secrets.ANDREYWTF_GPG_PRIVATE_KEY }}
+          ANDREYWTF_GPG_KEY_ID: ${{ secrets.ANDREYWTF_GPG_KEY_ID }}
+
       - name: Package chart
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -29,7 +40,12 @@ jobs:
           helm package "${CHART_PATH}" \
             --version "${VERSION}" \
             --app-version "${VERSION}" \
+            --sign \
+            --key "${ANDREYWTF_GPG_KEY_ID}" \
+            --keyring ./helm-secret.gpg \
             --destination dist
+        env:
+          ANDREYWTF_GPG_KEY_ID: ${{ secrets.ANDREYWTF_GPG_KEY_ID }}
 
       - name: Log in to registry
         run: |

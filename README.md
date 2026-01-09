@@ -22,6 +22,7 @@
   <a href="https://github.com/qweritos/haos-one/forks"><img alt="Forks" src="https://img.shields.io/github/forks/qweritos/haos-one?style=flat-square" /></a>
   <a href="https://github.com/qweritos/haos-one/issues"><img alt="Issues" src="https://img.shields.io/github/issues/qweritos/haos-one?style=flat-square" /></a>
   <a href="https://github.com/qweritos/haos-one/commits/main"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/qweritos/haos-one?style=flat-square" /></a>
+  <a href="https://artifacthub.io/packages/search?repo=haos-one"><img alt="Artifact Hub" src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/haos-one" /></a>
 </p>
 
 <br />
@@ -59,6 +60,14 @@ Install from the OCI registry:
 ```bash
 helm install haos-one oci://registry.andrey.wtf/helm/haos-one
 ```
+
+Or install from the local chart:
+
+```bash
+helm install haos-one ./charts/haos-one
+```
+
+Values and configuration options: see [`charts/haos-one/README.md`](charts/haos-one/README.md).
 
 ## Migration from deprecated Supervised installation method
 
