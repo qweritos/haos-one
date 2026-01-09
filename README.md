@@ -22,6 +22,7 @@
   <a href="https://github.com/qweritos/haos-one/forks"><img alt="Forks" src="https://img.shields.io/github/forks/qweritos/haos-one?style=flat-square" /></a>
   <a href="https://github.com/qweritos/haos-one/issues"><img alt="Issues" src="https://img.shields.io/github/issues/qweritos/haos-one?style=flat-square" /></a>
   <a href="https://github.com/qweritos/haos-one/commits/main"><img alt="Last Commit" src="https://img.shields.io/github/last-commit/qweritos/haos-one?style=flat-square" /></a>
+  <a href="https://artifacthub.io/packages/search?repo=haos-one"><img alt="Artifact Hub" src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/haos-one" /></a>
 </p>
 
 <br />

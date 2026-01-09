@@ -2,6 +2,20 @@ apiVersion: v2
 name: haos-one
 description: Run Home Assistant OS in a single container on Kubernetes.
 type: application
-version: 0.0.3
+version: 0.0.5
 appVersion: "latest"
+home: https://github.com/qweritos/haos-one
+sources:
+  - https://github.com/qweritos/haos-one
+maintainers:
+  - name: Andrey Artamonychev
+    email: me@andrey.wtf
+keywords:
+  - home-assistant
+  - homeassistant
+  - hass
+  - hassio
+  - HassOS
+  - HAOS
+  - home assistant operating system
 icon: https://www.home-assistant.io/images/favicon-192x192.png
