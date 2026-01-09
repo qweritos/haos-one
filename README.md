@@ -52,6 +52,14 @@ Wait for http://localhost:8123 to be available. Now you can create new House or 
 
 > First startup can take a while as it pulls all required images — please be patient.
 
+## Kubernetes install with Helm 
+
+Install from the OCI registry:
+
+```bash
+helm install haos-one oci://registry.andrey.wtf/helm/haos-one
+```
+
 ## Migration from deprecated Supervised installation method
 
 ### Method 1: Backup restore
