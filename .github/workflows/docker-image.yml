@@ -47,6 +47,15 @@ jobs:
           else
             echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
           fi
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.IMAGE_NAME }}
+            ${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            type=raw,value=${{ env.TAG_BASE }}-amd64
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -54,9 +63,8 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.TAG_BASE }}-amd64
-            ${{ env.DOCKERHUB_IMAGE }}:${{ env.TAG_BASE }}-amd64
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=haos-one-amd64
           cache-to: type=gha,mode=max,scope=haos-one-amd64
 
@@ -90,6 +98,15 @@ jobs:
           else
             echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
           fi
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ${{ env.IMAGE_NAME }}
+            ${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            type=raw,value=${{ env.TAG_BASE }}-arm64
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -97,9 +114,8 @@ jobs:
           context: .
           platforms: linux/arm64
           push: true
-          tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.TAG_BASE }}-arm64
-            ${{ env.DOCKERHUB_IMAGE }}:${{ env.TAG_BASE }}-arm64
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=haos-one-arm64
           cache-to: type=gha,mode=max,scope=haos-one-arm64
 
