@@ -1,0 +1,16 @@
+# var-lib-bluetooth.mount unit still depend on masked mnt-data.mount;
+# use oneshot bind to avoid that implicit dependency.
+
+[Unit]
+Description=Bind-mount /mnt/data/bluetooth to /var/lib/bluetooth
+ConditionPathIsMountPoint=/mnt/data
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=/bin/mkdir -p /mnt/data/bluetooth /var/lib/bluetooth
+ExecStart=/bin/mount --bind /mnt/data/bluetooth /var/lib/bluetooth
+ExecStop=/bin/umount /var/lib/bluetooth
+
+[Install]
+WantedBy=multi-user.target
