@@ -20,7 +20,7 @@ echo UTC > /etc/timezone
 # losetup "$loopdev" /data/data.img
 # mount -t xfs "$loopdev" /mnt/data
 
-# mount --make-rshared /mnt/data
+mount --make-rshared /mnt/data
 
 # make rauc to start
 if [ -x /usr/bin/grub-editenv ]; then
@@ -34,9 +34,5 @@ if [ -x /usr/bin/grub-editenv ]; then
   grub-editenv /mnt/boot/EFI/BOOT/grubenv set B_OK=1
   grub-editenv /mnt/boot/EFI/BOOT/grubenv set B_TRY=0
 fi
-
-mount
-# rm /etc/resolv.conf
-# echo "# empty" > /etc/resolv.conf
 
 exec "$@"
