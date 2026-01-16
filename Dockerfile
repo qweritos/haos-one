@@ -6,18 +6,26 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends \
   ca-certificates \
   curl \
+  jq \
   libguestfs-tools \
   xz-utils linux-image-generic \
   && rm -rf /var/lib/apt/lists/*
 
 ARG TARGETARCH
-ARG IMAGE_VERSION="17.0.rc1"
+ARG IMAGE_VERSION=""
 ARG DATA_IMG_SIZE="3G"
 ENV DATA_IMG_SIZE="${DATA_IMG_SIZE}"
 
 RUN mkdir -p /input /rootfs
 
-RUN case "${TARGETARCH}" in \
+RUN if [ -z "${IMAGE_VERSION}" ]; then \
+    IMAGE_VERSION="$(curl -fsSL https://api.github.com/repos/home-assistant/operating-system/releases/latest \
+      | jq -r '.tag_name')"; \
+  fi && \
+  if [ -z "${IMAGE_VERSION}" ]; then \
+    echo "Failed to resolve IMAGE_VERSION, specify arg manually." >&2; exit 1; \
+  fi && \
+  case "${TARGETARCH}" in \
     arm64) IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${IMAGE_VERSION}/haos_generic-aarch64-${IMAGE_VERSION}.qcow2.xz" ;; \
     amd64|x86_64|"") IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${IMAGE_VERSION}/haos_ova-${IMAGE_VERSION}.qcow2.xz" ;; \
     *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
