@@ -22,6 +22,26 @@ echo UTC > /etc/timezone
 
 mount --make-rshared /mnt/data
 
+# Optionally disable NetworkManager via systemd masking.
+case "${USE_DUMMY_NETWORKMANAGER:-0}" in
+  1|true|TRUE|yes|YES|on|ON)
+    ln -sf /dev/null /etc/systemd/system/NetworkManager.service
+    mkdir -p /etc/systemd/system/multi-user.target.wants
+    ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
+    ;;
+esac
+
+case "${DEV:-0}" in
+  1|true|TRUE|yes|YES|on|ON)
+    mkdir -p /etc/systemd/system/haos-one-compat.service.d
+    cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<'EOF'
+[Service]
+ExecStart=
+ExecStart=/usr/bin/docker run --name haos_one_compat -v /run/dbus:/run/dbus -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
+EOF
+    ;;
+esac
+
 # make rauc to start
 if [ -x /usr/bin/grub-editenv ]; then
   mkdir -p /mnt/boot/EFI/BOOT

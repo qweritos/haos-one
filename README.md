@@ -119,6 +119,13 @@ docker exec -it haos systemctl restart docker
   docker run --name haos -ti --privileged -p 8123:8123 -v haos-data:/mnt/data qweritos/haos-one
   ```
 
+### Env vars
+
+| Name | Description | Default |
+| --- | --- | --- |
+| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable `haos-one-compat` | `0` |
+| `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
+
 ## Troubleshooting
 
 - Drop into HA CLI: `docker attach haos`
