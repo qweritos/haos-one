@@ -32,6 +32,11 @@ spec:
         - name: haos-one
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: USE_DUMMY_NETWORKMANAGER
+              value: {{ .Values.useDummyNetworkManager | quote }}
+            - name: DISABLE_UDEV
+              value: {{ .Values.disableUdev | quote }}
           securityContext:
             privileged: {{ .Values.securityContext.privileged }}
           {{- if .Values.service.enabled }}

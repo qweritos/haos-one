@@ -9,6 +9,8 @@ nameOverride: ""
 fullnameOverride: ""
 
 hostNetwork: false
+useDummyNetworkManager: false
+disableUdev: true
 
 service:
   enabled: true

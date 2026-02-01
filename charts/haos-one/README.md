@@ -19,6 +19,8 @@ helm install haos-one oci://registry.andrey.wtf/helm/haos-one
 | `nameOverride` | Override chart name | empty |
 | `fullnameOverride` | Override release name | empty |
 | `hostNetwork` | Enable host networking | `false` |
+| `useDummyNetworkManager` | Enable dummy NetworkManager inside the container | `false` |
+| `disableUdev` | Mask udev units via systemd in entrypoint | `true` |
 | `service.enabled` | Create a Service | `true` |
 | `service.type` | Service type | `ClusterIP` |
 | `service.port` | Service port | `8123` |

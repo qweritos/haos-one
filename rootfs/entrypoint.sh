@@ -28,6 +28,22 @@ case "${USE_DUMMY_NETWORKMANAGER:-0}" in
     ln -sf /dev/null /etc/systemd/system/NetworkManager.service
     mkdir -p /etc/systemd/system/multi-user.target.wants
     ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
+    mkdir -p /etc/systemd/system/hassos-supervisor.service.d
+    cat > /etc/systemd/system/hassos-supervisor.service.d/override.conf <<'EOF'
+[Unit]
+After=haos-one-compat.service
+Requires=haos-one-compat.service
+EOF
+    ;;
+esac
+
+# Optionally disable udev via systemd masking.
+case "${DISABLE_UDEV:-1}" in
+  1|true|TRUE|yes|YES|on|ON)
+    ln -sf /dev/null /etc/systemd/system/systemd-udevd.service
+    ln -sf /dev/null /etc/systemd/system/systemd-udevd-control.socket
+    ln -sf /dev/null /etc/systemd/system/systemd-udevd-kernel.socket
+    ln -sf /dev/null /etc/systemd/system/systemd-udev-trigger.service
     ;;
 esac
 
