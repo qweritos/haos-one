@@ -2,8 +2,8 @@ apiVersion: v2
 name: haos-one
 description: Run Home Assistant OS in a single container on Kubernetes.
 type: application
-version: 0.0.6
-appVersion: "latest"
+version: 0.0.11
+appVersion: "0.0.1"
 home: https://github.com/qweritos/haos-one
 sources:
   - https://github.com/qweritos/haos-one

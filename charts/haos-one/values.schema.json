@@ -57,6 +57,11 @@
       "description": "Mask udev units via systemd in entrypoint.",
       "default": true
     },
+    "useHostDevSerial": {
+      "type": "boolean",
+      "description": "Mount host /dev/serial into the container (read-write).",
+      "default": true
+    },
     "service": {
       "type": "object",
       "additionalProperties": false,
@@ -310,6 +315,7 @@
     "hostNetwork",
     "useDummyNetworkManager",
     "disableUdev",
+    "useHostDevSerial",
     "service",
     "ingress",
     "persistence",
