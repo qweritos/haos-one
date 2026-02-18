@@ -3,11 +3,6 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: {{ include "haos-one.fullname" . }}
-  labels:
-    {{- include "haos-one.labels" . | nindent 4 }}
-    {{- with .Values.serviceMonitor.labels }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
 spec:
   selector:
     matchLabels:

@@ -47,6 +47,21 @@
       "description": "Enable host networking for the pod.",
       "default": false
     },
+    "useDummyNetworkManager": {
+      "type": "boolean",
+      "description": "Enable dummy NetworkManager inside the container.",
+      "default": false
+    },
+    "disableUdev": {
+      "type": "boolean",
+      "description": "Mask udev units via systemd in entrypoint.",
+      "default": true
+    },
+    "useHostDevSerial": {
+      "type": "boolean",
+      "description": "Mount host /dev/serial into the container (read-write).",
+      "default": true
+    },
     "service": {
       "type": "object",
       "additionalProperties": false,
@@ -298,6 +313,9 @@
     "nameOverride",
     "fullnameOverride",
     "hostNetwork",
+    "useDummyNetworkManager",
+    "disableUdev",
+    "useHostDevSerial",
     "service",
     "ingress",
     "persistence",

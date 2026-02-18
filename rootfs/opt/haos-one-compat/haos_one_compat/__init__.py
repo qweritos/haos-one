@@ -1,0 +1,2 @@
+"""haos-one-compat package."""
+

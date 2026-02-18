@@ -1,0 +1,16 @@
+[Unit]
+Description=Build and run haos_one_compat container
+After=docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/docker rm -f haos_one_compat
+ExecStartPre=/usr/bin/docker build -t haos_one_compat /opt/haos-one-compat
+ExecStart=/usr/bin/docker run --name haos_one_compat -v /run/dbus:/run/dbus haos_one_compat
+ExecStop=/usr/bin/docker stop haos_one_compat
+Restart=always
+RestartSec=2s
+
+[Install]
+WantedBy=multi-user.target

@@ -119,6 +119,14 @@ docker exec -it haos systemctl restart docker
   docker run --name haos -ti --privileged -p 8123:8123 -v haos-data:/mnt/data qweritos/haos-one
   ```
 
+### Env vars
+
+| Name | Description | Default |
+| --- | --- | --- |
+| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable `haos-one-compat` | `0` |
+| `DISABLE_UDEV` | Disable in-container udev services | `1` |
+| `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
+
 ## Troubleshooting
 
 - Drop into HA CLI: `docker attach haos`
@@ -148,9 +156,13 @@ See [docs](docs) for details.
 
 ## Known Issues
 
-- `--network host` lets HA manage host networking and may cause misconfiguration.
-- `"Unsupported system - Network Manager issues"` warning - fix in progress.
-- `Failed to get outbound IP, retrying in 5s: can't get default interface from Supervisor: {"result":"error","message":"Interface default does not exist"` in journal (with non-host networking) - fix in progress.
+- ~~`--network host` lets HA manage host networking and may cause misconfiguration.~~
+use `docker run ... -e USE_DUMMY_NETWORKMANAGER=1 ...` env var 
+- ~~`"Unsupported system - Network Manager issues"` warning - fix in progress.~~
+- ~~`Failed to get outbound IP, retrying in 5s: can't get default interface from Supervisor: {"result":"error","message":"Interface default does not exist"` in journal (with non-host networking) - fix in progress.~~
+- ~~Docker Desktop on MacOS becomes inaccessible if run with `--network=host`~~
+use `-e DISABLE_UDEV=1` for workaround (flag is enabled by default)
+
 
 ## TODOs & Progress:
 
