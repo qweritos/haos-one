@@ -16,7 +16,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   DOCKERHUB_IMAGE: qweritos/haos-one
   HAOS_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.HAOS_VERSION || '' }}
-  TAG_BASE: ${{ github.ref_name == 'master' && 'latest' || github.ref_name }}
+  TAG_BASE: ${{ github.ref_name == 'master' && github.event.inputs.HAOS_VERSION == '' && 'latest' || github.ref_name }}
 
 # need separate jobs because we need kvm kernel module, and binfmt can't handle such requirement.
 # also, native platform-specific runners and parallel jobs are making process way faster.
