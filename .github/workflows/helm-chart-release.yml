@@ -7,6 +7,8 @@ on:
 
 env:
   CHART_PATH: charts/haos-one
+  ARTIFACTHUB_REPO_METADATA_PATH: charts/haos-one/artifacthub-repo.yml
+  CHART_NAME: haos-one
   ANDREYWTF_REGISTRY_HOST: registry.andrey.wtf
   REGISTRY_REPO: charts
 
@@ -21,6 +23,9 @@ jobs:
         uses: azure/setup-helm@v4
         with:
           version: v3.14.4
+
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@v1
 
       - name: Install GnuPG
         run: sudo apt-get update && sudo apt-get install -y gnupg
@@ -74,3 +79,19 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           helm push "dist/haos-one-${VERSION}.tgz" \
             "oci://${ANDREYWTF_REGISTRY_HOST}/${REGISTRY_REPO}"
+
+      - name: Log in to registry (ORAS)
+        run: |
+          echo "${ANDREYWTF_REGISTRY_PASSWORD}" | oras login "${ANDREYWTF_REGISTRY_HOST}" \
+            --username "${ANDREYWTF_REGISTRY_USERNAME}" \
+            --password-stdin
+        env:
+          ANDREYWTF_REGISTRY_USERNAME: ${{ secrets.ANDREYWTF_REGISTRY_USERNAME }}
+          ANDREYWTF_REGISTRY_PASSWORD: ${{ secrets.ANDREYWTF_REGISTRY_PASSWORD }}
+
+      - name: Push Artifact Hub repository metadata
+        run: |
+          oras push \
+            "${ANDREYWTF_REGISTRY_HOST}/${REGISTRY_REPO}/${CHART_NAME}:artifacthub.io" \
+            --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
+            "${ARTIFACTHUB_REPO_METADATA_PATH}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
