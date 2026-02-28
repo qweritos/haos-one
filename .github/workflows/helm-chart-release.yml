@@ -3,6 +3,7 @@ name: Publish Helm Chart
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 env:
   CHART_PATH: charts/haos-one
@@ -27,25 +28,32 @@ jobs:
       - name: Import signing key
         run: |
           echo "${ANDREYWTF_GPG_PRIVATE_KEY}" | gpg --batch --import
-          gpg --export-secret-keys --output ./helm-secret.gpg "${ANDREYWTF_GPG_KEY_ID}"
+          gpg --batch --pinentry-mode loopback \
+            --passphrase "${ANDREYWTF_GPG_PASSPHRASE}" \
+            --export-secret-keys --output ./helm-secret.gpg "${ANDREYWTF_GPG_KEY_ID}"
         env:
           ANDREYWTF_GPG_PRIVATE_KEY: ${{ secrets.ANDREYWTF_GPG_PRIVATE_KEY }}
           ANDREYWTF_GPG_KEY_ID: ${{ secrets.ANDREYWTF_GPG_KEY_ID }}
+          ANDREYWTF_GPG_PASSPHRASE: ${{ secrets.ANDREYWTF_GPG_PASSPHRASE }}
 
       - name: Package chart
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           mkdir -p dist
           helm lint "${CHART_PATH}"
+          printf '%s' "${ANDREYWTF_GPG_PASSPHRASE}" > /tmp/.gpg-passphrase
           helm package "${CHART_PATH}" \
             --version "${VERSION}" \
             --app-version "${VERSION}" \
             --sign \
             --key "${ANDREYWTF_GPG_KEY_ID}" \
             --keyring ./helm-secret.gpg \
+            --passphrase-file /tmp/.gpg-passphrase \
             --destination dist
+          rm -f /tmp/.gpg-passphrase
         env:
           ANDREYWTF_GPG_KEY_ID: ${{ secrets.ANDREYWTF_GPG_KEY_ID }}
+          ANDREYWTF_GPG_PASSPHRASE: ${{ secrets.ANDREYWTF_GPG_PASSPHRASE }}
 
       - name: Log in to registry
         run: |
