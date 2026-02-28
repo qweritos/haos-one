@@ -31,6 +31,12 @@ jobs:
           gpg --batch --pinentry-mode loopback \
             --passphrase "${ANDREYWTF_GPG_PASSPHRASE}" \
             --export-secret-keys --output ./helm-secret.gpg "${ANDREYWTF_GPG_KEY_ID}"
+          HELM_SIGNING_KEY="$(gpg --batch --list-secret-keys --with-colons "${ANDREYWTF_GPG_KEY_ID}" | awk -F: '/^uid:/ {print $10; exit}')"
+          if [ -z "${HELM_SIGNING_KEY}" ]; then
+            echo "Failed to resolve signing key UID from imported secret key." >&2
+            exit 1
+          fi
+          echo "HELM_SIGNING_KEY=${HELM_SIGNING_KEY}" >> "$GITHUB_ENV"
         env:
           ANDREYWTF_GPG_PRIVATE_KEY: ${{ secrets.ANDREYWTF_GPG_PRIVATE_KEY }}
           ANDREYWTF_GPG_KEY_ID: ${{ secrets.ANDREYWTF_GPG_KEY_ID }}
@@ -46,13 +52,12 @@ jobs:
             --version "${VERSION}" \
             --app-version "${VERSION}" \
             --sign \
-            --key "${ANDREYWTF_GPG_KEY_ID}" \
+            --key "${HELM_SIGNING_KEY}" \
             --keyring ./helm-secret.gpg \
             --passphrase-file /tmp/.gpg-passphrase \
             --destination dist
           rm -f /tmp/.gpg-passphrase
         env:
-          ANDREYWTF_GPG_KEY_ID: ${{ secrets.ANDREYWTF_GPG_KEY_ID }}
           ANDREYWTF_GPG_PASSPHRASE: ${{ secrets.ANDREYWTF_GPG_PASSPHRASE }}
 
       - name: Log in to registry
