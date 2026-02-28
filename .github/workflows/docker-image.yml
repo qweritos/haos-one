@@ -1,8 +1,6 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches: ["**"]
   workflow_dispatch:
     inputs:
       HAOS_VERSION:
@@ -18,6 +16,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   DOCKERHUB_IMAGE: qweritos/haos-one
   HAOS_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.HAOS_VERSION || '' }}
+  TAG_BASE: ${{ github.ref_name == 'master' && 'latest' || github.ref_name }}
 
 # need separate jobs because we need kvm kernel module, and binfmt can't handle such requirement.
 # also, native platform-specific runners and parallel jobs are making process way faster.
@@ -46,13 +45,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tag
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
-          else
-            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          fi
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -63,6 +55,7 @@ jobs:
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-amd64
             type=raw,value=${{ env.HAOS_VERSION }}-amd64,enable=${{ env.HAOS_VERSION != '' }}
+            type=raw,value=${{ github.ref_name }}-${{ env.HAOS_VERSION }}-amd64,enable=${{ env.HAOS_VERSION != '' && github.ref_name != 'master' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -100,13 +93,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tag
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
-          else
-            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          fi
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -117,6 +103,7 @@ jobs:
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-arm64
             type=raw,value=${{ env.HAOS_VERSION }}-arm64,enable=${{ env.HAOS_VERSION != '' }}
+            type=raw,value=${{ github.ref_name }}-${{ env.HAOS_VERSION }}-arm64,enable=${{ env.HAOS_VERSION != '' && github.ref_name != 'master' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -152,14 +139,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tag
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
-          else
-            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          fi
-
       - name: Create multi-arch manifests
         run: |
           docker buildx imagetools create -t "${IMAGE_NAME}:${TAG_BASE}" \
@@ -175,4 +154,12 @@ jobs:
             docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${HAOS_VERSION}" \
               "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-amd64" \
               "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-arm64"
+            if [ "${GITHUB_REF_NAME}" != "master" ]; then
+              docker buildx imagetools create -t "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}" \
+                "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}-amd64" \
+                "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}-arm64"
+              docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}" \
+                "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}-amd64" \
+                "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}-arm64"
+            fi
           fi
