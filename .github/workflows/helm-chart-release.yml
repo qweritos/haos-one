@@ -7,7 +7,7 @@ on:
 env:
   CHART_PATH: charts/haos-one
   ANDREYWTF_REGISTRY_HOST: registry.andrey.wtf
-  REGISTRY_REPO: helm
+  REGISTRY_REPO: charts
 
 jobs:
   publish:

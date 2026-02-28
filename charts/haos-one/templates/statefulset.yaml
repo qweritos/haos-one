@@ -2,8 +2,6 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: {{ include "haos-one.fullname" . }}
-  labels:
-    {{- include "haos-one.labels" . | nindent 4 }}
 spec:
   serviceName: {{ include "haos-one.fullname" . }}
   replicas: {{ .Values.replicaCount }}
@@ -32,6 +30,11 @@ spec:
         - name: haos-one
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: USE_DUMMY_NETWORKMANAGER
+              value: {{ .Values.useDummyNetworkManager | quote }}
+            - name: DISABLE_UDEV
+              value: {{ .Values.disableUdev | quote }}
           securityContext:
             privileged: {{ .Values.securityContext.privileged }}
           {{- if .Values.service.enabled }}
@@ -40,39 +43,53 @@ spec:
               containerPort: {{ .Values.service.port }}
               protocol: TCP
           {{- end }}
-          {{- if .Values.persistence.enabled }}
+          {{- if or .Values.persistence.enabled .Values.apparmor.unconfined .Values.useHostDevSerial }}
           volumeMounts:
+            {{- if .Values.persistence.enabled }}
             - name: data
               mountPath: {{ .Values.persistence.mountPath }}
-          {{- end }}
-          {{- if .Values.apparmor.unconfined }}
+            {{- end }}
+            {{- if .Values.apparmor.unconfined }}
             - name: host-security
               mountPath: /sys/kernel/security
+            {{- end }}
+            {{- if .Values.useHostDevSerial }}
+            - name: host-dev-serial
+              mountPath: /dev/serial
+            {{- end }}
           {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      {{- if or .Values.persistence.enabled .Values.apparmor.unconfined .Values.useHostDevSerial }}
       volumes:
-      {{- if .Values.persistence.enabled }}
-        {{- if .Values.persistence.hostPath }}
+        {{- if .Values.persistence.enabled }}
+          {{- if .Values.persistence.hostPath }}
         - name: data
           hostPath:
             path: {{ .Values.persistence.hostPath }}
             type: DirectoryOrCreate
-        {{- else if .Values.persistence.existingClaim }}
+          {{- else if .Values.persistence.existingClaim }}
         - name: data
           persistentVolumeClaim:
             claimName: {{ .Values.persistence.existingClaim }}
-        {{- else }}
+          {{- else }}
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "haos-one.fullname" . }}
+          {{- end }}
         {{- end }}
-      {{- end }}
-      {{- if .Values.apparmor.unconfined }}
+        {{- if .Values.apparmor.unconfined }}
         - name: host-security
           hostPath:
             path: /sys/kernel/security
             type: ""
+        {{- end }}
+        {{- if .Values.useHostDevSerial }}
+        - name: host-dev-serial
+          hostPath:
+            path: /dev/serial
+            type: Directory
+        {{- end }}
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
