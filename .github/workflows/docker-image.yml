@@ -15,6 +15,7 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   DOCKERHUB_IMAGE: qweritos/haos-one
+  ARTIFACTHUB_REPO_METADATA_PATH: artifacthub-repo.yml
   HAOS_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.HAOS_VERSION || '' }}
   TAG_BASE: ${{ github.ref_name == 'master' && github.event.inputs.HAOS_VERSION == '' && 'latest' || github.ref_name }}
 
@@ -126,6 +127,9 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@v1
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -163,3 +167,19 @@ jobs:
                 "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}-arm64"
             fi
           fi
+
+      - name: Log in to registry (ORAS)
+        run: |
+          echo "${DOCKERHUB_TOKEN}" | oras login docker.io \
+            --username "${DOCKERHUB_USERNAME}" \
+            --password-stdin
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Artifact Hub repository metadata
+        run: |
+          oras push \
+            "docker.io/${DOCKERHUB_IMAGE}:artifacthub.io" \
+            --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
+            "${ARTIFACTHUB_REPO_METADATA_PATH}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
