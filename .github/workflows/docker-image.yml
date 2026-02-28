@@ -62,6 +62,7 @@ jobs:
             ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-amd64
+            type=raw,value=${{ env.HAOS_VERSION }}-amd64,enable=${{ env.HAOS_VERSION != '' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -115,6 +116,7 @@ jobs:
             ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-arm64
+            type=raw,value=${{ env.HAOS_VERSION }}-arm64,enable=${{ env.HAOS_VERSION != '' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -166,3 +168,11 @@ jobs:
           docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${TAG_BASE}" \
             "${DOCKERHUB_IMAGE}:${TAG_BASE}-amd64" \
             "${DOCKERHUB_IMAGE}:${TAG_BASE}-arm64"
+          if [ -n "${HAOS_VERSION}" ]; then
+            docker buildx imagetools create -t "${IMAGE_NAME}:${HAOS_VERSION}" \
+              "${IMAGE_NAME}:${HAOS_VERSION}-amd64" \
+              "${IMAGE_NAME}:${HAOS_VERSION}-arm64"
+            docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${HAOS_VERSION}" \
+              "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-amd64" \
+              "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-arm64"
+          fi
