@@ -5,7 +5,7 @@ Run HAOS in a single Kubernetes pod (StatefulSet).
 ## Install
 
 ```
-helm install haos-one oci://registry.andrey.wtf/helm/haos-one
+helm install haos-one oci://registry.andrey.wtf/charts/haos-one
 ```
 
 ## Values
@@ -53,7 +53,7 @@ helm install haos-one oci://registry.andrey.wtf/helm/haos-one
 ## Example
 
 ```
-helm install haos-one oci://registry.andrey.wtf/helm/haos-one \
+helm install haos-one oci://registry.andrey.wtf/charts/haos-one \
   --set hostNetwork=true \
   --set persistence.hostPath=/var/lib/haos-one
 ```

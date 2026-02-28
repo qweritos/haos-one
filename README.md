@@ -58,7 +58,7 @@ Wait for http://localhost:8123 to be available. Now you can create new House or 
 Install from the OCI registry:
 
 ```bash
-helm install haos-one oci://registry.andrey.wtf/helm/haos-one
+helm install haos-one oci://registry.andrey.wtf/charts/haos-one
 ```
 
 Or install from the local chart:
