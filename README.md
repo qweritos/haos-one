@@ -43,6 +43,10 @@ Simple as one command:
 docker run --name haos -ti --privileged -p 8123:8123 qweritos/haos-one
 ```
 
+> You can pin a specific Home Assistant OS version tag (including prereleases), for example `qweritos/haos-one:17.0.rc2`
+For available HAOS versions, see:
+https://github.com/home-assistant/operating-system/releases
+
 <p align="">
   <img alt="Intro" src="docs/assets/intro.webp" />
 </p>
