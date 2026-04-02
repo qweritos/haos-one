@@ -47,6 +47,23 @@ case "${DISABLE_UDEV:-1}" in
     ;;
 esac
 
+# Disable the HA CLI login service for wrong-geometry console, for example for docker-compose.
+# https://github.com/qweritos/haos-one/issues/31
+disable_ha_cli=0
+if [ -c /dev/console ]; then
+  console_size="$(stty -F /dev/console size 2>/dev/null || true)"
+  case "$console_size" in
+    ''|0\ *|*\ 0)
+      disable_ha_cli=1
+      ;;
+  esac
+fi
+
+if [ "$disable_ha_cli" -eq 1 ]; then
+  ln -sf /dev/null /etc/systemd/system/ha-cli@console.service
+  ln -sf /dev/null /etc/systemd/system/ha-cli@tty1.service
+fi
+
 case "${DEV:-0}" in
   1|true|TRUE|yes|YES|on|ON)
     mkdir -p /etc/systemd/system/haos-one-compat.service.d
