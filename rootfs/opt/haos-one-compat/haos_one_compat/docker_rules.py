@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 
 _TARGET_RE = re.compile(r"^/(?:v[^/]+/)?(info|containers/json)$")
 _HIDDEN_CONTAINER_NAMES = {"/haos_one_compat", "haos_one_compat"}
+_INFO_WARNING = "HAOS compat: intercepted"
 
 
 def normalize_target_path(path: str) -> str | None:
@@ -38,7 +39,12 @@ def rewrite_json_payload(path: str, payload: bytes) -> bytes:
     if target == "/info":
         if not isinstance(data, dict):
             return payload
-        data["HAOSCompat"] = "intercepted"
+        warnings = data.get("Warnings")
+        if isinstance(warnings, list):
+            if _INFO_WARNING not in warnings:
+                warnings.append(_INFO_WARNING)
+        else:
+            data["Warnings"] = [_INFO_WARNING]
     elif target == "/containers/json":
         if not isinstance(data, list):
             return payload

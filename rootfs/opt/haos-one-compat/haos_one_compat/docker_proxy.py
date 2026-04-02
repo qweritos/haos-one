@@ -16,6 +16,13 @@ from .docker_rules import is_rewrite_target, rewrite_json_payload
 _LOGGER = logging.getLogger(__name__)
 _HTTP_HEADER_LIMIT = 1024 * 1024
 _READ_CHUNK_SIZE = 64 * 1024
+_TUNNEL_PATH_MARKERS = (
+    "/attach",
+    "/events",
+    "/exec/",
+    "/logs",
+    "/stats",
+)
 
 
 @dataclass(slots=True)
@@ -207,6 +214,32 @@ def rewrite_http_response(path: str, response: HTTPResponse) -> bytes:
     return b"".join(parts)
 
 
+def _header_contains(headers: list[tuple[str, str]], name: str, token: str) -> bool:
+    target = name.lower()
+    expected = token.lower()
+    for key, value in headers:
+        if key.lower() != target:
+            continue
+        if expected in value.lower():
+            return True
+    return False
+
+
+def _request_wants_tunnel(request: HTTPRequestHead) -> bool:
+    if _header_contains(request.headers, "Connection", "upgrade"):
+        return True
+    path = request.path.lower()
+    return any(marker in path for marker in _TUNNEL_PATH_MARKERS)
+
+
+def _uses_keep_alive(version: str, headers: list[tuple[str, str]]) -> bool:
+    connection_close = _header_contains(headers, "Connection", "close")
+    connection_keepalive = _header_contains(headers, "Connection", "keep-alive")
+    if version == "HTTP/1.0":
+        return connection_keepalive
+    return not connection_close
+
+
 async def _pipe(
     reader: asyncio.StreamReader,
     writer: asyncio.StreamWriter,
@@ -313,26 +346,36 @@ class DockerSocketProxy:
         upstream_writer: asyncio.StreamWriter | None = None
 
         try:
-            request = await _read_request_head(client_reader)
             upstream_reader, upstream_writer = await asyncio.open_unix_connection(
                 self.upstream_path
             )
-            upstream_writer.write(request.raw)
-            await upstream_writer.drain()
-
-            if is_rewrite_target(request.path):
+            while True:
+                request = await _read_request_head(client_reader)
+                upstream_writer.write(request.raw)
+                await upstream_writer.drain()
                 await _forward_request_body(request, client_reader, upstream_writer)
-                response = await _read_response(upstream_reader, request.method)
-                client_writer.write(rewrite_http_response(request.path, response))
-                await client_writer.drain()
-                return
 
-            await _bidirectional_relay(
-                client_reader,
-                client_writer,
-                upstream_reader,
-                upstream_writer,
-            )
+                if _request_wants_tunnel(request):
+                    await _bidirectional_relay(
+                        client_reader,
+                        client_writer,
+                        upstream_reader,
+                        upstream_writer,
+                    )
+                    return
+
+                response = await _read_response(upstream_reader, request.method)
+                if is_rewrite_target(request.path):
+                    client_writer.write(rewrite_http_response(request.path, response))
+                else:
+                    client_writer.write(response.raw)
+                await client_writer.drain()
+
+                if not (
+                    _uses_keep_alive(request.version, request.headers)
+                    and _uses_keep_alive(response.version, response.headers)
+                ):
+                    return
         except asyncio.IncompleteReadError:
             _LOGGER.debug("connection closed while reading Docker API stream")
         except Exception:

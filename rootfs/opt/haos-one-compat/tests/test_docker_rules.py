@@ -22,18 +22,22 @@ class DockerRulesTests(unittest.TestCase):
         self.assertIsNone(normalize_target_path("/version"))
         self.assertIsNone(normalize_target_path("/containers/abc/json"))
 
-    def test_rewrite_info_adds_compat_marker_only(self) -> None:
+    def test_rewrite_info_adds_compat_warning_only(self) -> None:
         payload = json.dumps(
             {
                 "OperatingSystem": "Home Assistant OS 17.1",
                 "Architecture": "x86_64",
                 "Driver": "overlay2",
+                "Warnings": ["existing warning"],
             }
         ).encode("utf-8")
 
         rewritten = json.loads(rewrite_json_payload("/info", payload))
 
-        self.assertEqual(rewritten["HAOSCompat"], "intercepted")
+        self.assertEqual(
+            rewritten["Warnings"],
+            ["existing warning", "HAOS compat: intercepted"],
+        )
         self.assertEqual(rewritten["OperatingSystem"], "Home Assistant OS 17.1")
         self.assertEqual(rewritten["Architecture"], "x86_64")
         self.assertEqual(rewritten["Driver"], "overlay2")
