@@ -12,24 +12,24 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 ARG TARGETARCH
-ARG IMAGE_VERSION=""
+ARG HAOS_VERSION=""
 ARG DATA_IMG_SIZE="3G"
 ENV DATA_IMG_SIZE="${DATA_IMG_SIZE}"
-ENV USE_DUMMY_NETWORKMANAGER=0
+ENV USE_DUMMY_NETWORKMANAGER=1
 ENV DISABLE_UDEV=1
 
 RUN mkdir -p /input /rootfs
 
-RUN if [ -z "${IMAGE_VERSION}" ]; then \
-    IMAGE_VERSION="$(curl -fsSL https://api.github.com/repos/home-assistant/operating-system/releases/latest \
+RUN if [ -z "${HAOS_VERSION}" ]; then \
+    HAOS_VERSION="$(curl -fsSL https://api.github.com/repos/home-assistant/operating-system/releases/latest \
       | jq -r '.tag_name')"; \
   fi && \
-  if [ -z "${IMAGE_VERSION}" ]; then \
-    echo "Failed to resolve IMAGE_VERSION, specify arg manually." >&2; exit 1; \
+  if [ -z "${HAOS_VERSION}" ]; then \
+    echo "Failed to resolve HAOS_VERSION, specify arg manually." >&2; exit 1; \
   fi && \
   case "${TARGETARCH}" in \
-    arm64) IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${IMAGE_VERSION}/haos_generic-aarch64-${IMAGE_VERSION}.qcow2.xz" ;; \
-    amd64|x86_64|"") IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${IMAGE_VERSION}/haos_ova-${IMAGE_VERSION}.qcow2.xz" ;; \
+    arm64) IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${HAOS_VERSION}/haos_generic-aarch64-${HAOS_VERSION}.qcow2.xz" ;; \
+    amd64|x86_64|"") IMAGE_URL="https://github.com/home-assistant/operating-system/releases/download/${HAOS_VERSION}/haos_ova-${HAOS_VERSION}.qcow2.xz" ;; \
     *) echo "Unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
   esac && \
   curl -fL "$IMAGE_URL" -o /input/disk.qcow2.xz && \
@@ -52,7 +52,7 @@ LABEL org.opencontainers.image.source="https://github.com/qweritos/haos-one"
 LABEL org.opencontainers.image.documentation="https://github.com/qweritos/haos-one/tree/master/docs"
 LABEL org.opencontainers.image.licenses="Apache-2.0"
 LABEL org.opencontainers.image.description="Home Assistant Operating System: Single-Container Docker Image"
-LABEL io.artifacthub.package.readme-url="https://github.com/qweritos/haos-one/blob/master/README.md"
+LABEL io.artifacthub.package.readme-url="https://raw.githubusercontent.com/qweritos/haos-one/master/README.md"
 
 COPY --from=builder /rootfs/ /
 

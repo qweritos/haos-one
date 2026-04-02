@@ -50,7 +50,7 @@
     "useDummyNetworkManager": {
       "type": "boolean",
       "description": "Enable dummy NetworkManager inside the container.",
-      "default": false
+      "default": true
     },
     "disableUdev": {
       "type": "boolean",

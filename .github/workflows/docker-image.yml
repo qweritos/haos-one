@@ -1,9 +1,12 @@
 name: Build and Push Docker Image
 
 on:
-  push:
-    branches: ["**"]
   workflow_dispatch:
+    inputs:
+      HAOS_VERSION:
+        description: "HAOS release tag (for example: 15.2). Leave empty to use latest."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -12,6 +15,9 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   DOCKERHUB_IMAGE: qweritos/haos-one
+  ARTIFACTHUB_REPO_METADATA_PATH: artifacthub-repo.yml
+  HAOS_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.HAOS_VERSION || '' }}
+  TAG_BASE: ${{ github.ref_name == 'master' && github.event.inputs.HAOS_VERSION == '' && 'latest' || github.ref_name }}
 
 # need separate jobs because we need kvm kernel module, and binfmt can't handle such requirement.
 # also, native platform-specific runners and parallel jobs are making process way faster.
@@ -40,13 +46,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tag
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
-          else
-            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          fi
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -56,6 +55,8 @@ jobs:
             ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-amd64
+            type=raw,value=${{ env.HAOS_VERSION }}-amd64,enable=${{ env.HAOS_VERSION != '' }}
+            type=raw,value=${{ github.ref_name }}-${{ env.HAOS_VERSION }}-amd64,enable=${{ env.HAOS_VERSION != '' && github.ref_name != 'master' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -63,6 +64,8 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
+          build-args: |
+            HAOS_VERSION=${{ env.HAOS_VERSION }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=haos-one-amd64
@@ -91,13 +94,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tag
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
-          else
-            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          fi
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
@@ -107,6 +103,8 @@ jobs:
             ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-arm64
+            type=raw,value=${{ env.HAOS_VERSION }}-arm64,enable=${{ env.HAOS_VERSION != '' }}
+            type=raw,value=${{ github.ref_name }}-${{ env.HAOS_VERSION }}-arm64,enable=${{ env.HAOS_VERSION != '' && github.ref_name != 'master' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -114,6 +112,8 @@ jobs:
           context: .
           platforms: linux/arm64
           push: true
+          build-args: |
+            HAOS_VERSION=${{ env.HAOS_VERSION }}
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha,scope=haos-one-arm64
@@ -124,8 +124,14 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-amd64, build-arm64]
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Set up ORAS
+        uses: oras-project/setup-oras@v1
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -140,14 +146,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set tag
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "TAG_BASE=latest" >> "$GITHUB_ENV"
-          else
-            echo "TAG_BASE=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
-          fi
-
       - name: Create multi-arch manifests
         run: |
           docker buildx imagetools create -t "${IMAGE_NAME}:${TAG_BASE}" \
@@ -156,3 +154,35 @@ jobs:
           docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${TAG_BASE}" \
             "${DOCKERHUB_IMAGE}:${TAG_BASE}-amd64" \
             "${DOCKERHUB_IMAGE}:${TAG_BASE}-arm64"
+          if [ -n "${HAOS_VERSION}" ]; then
+            docker buildx imagetools create -t "${IMAGE_NAME}:${HAOS_VERSION}" \
+              "${IMAGE_NAME}:${HAOS_VERSION}-amd64" \
+              "${IMAGE_NAME}:${HAOS_VERSION}-arm64"
+            docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${HAOS_VERSION}" \
+              "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-amd64" \
+              "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-arm64"
+            if [ "${GITHUB_REF_NAME}" != "master" ]; then
+              docker buildx imagetools create -t "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}" \
+                "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}-amd64" \
+                "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}-arm64"
+              docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}" \
+                "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}-amd64" \
+                "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}-arm64"
+            fi
+          fi
+
+      - name: Log in to registry (ORAS)
+        run: |
+          echo "${DOCKERHUB_TOKEN}" | oras login docker.io \
+            --username "${DOCKERHUB_USERNAME}" \
+            --password-stdin
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Push Artifact Hub repository metadata
+        run: |
+          oras push \
+            "docker.io/${DOCKERHUB_IMAGE}:artifacthub.io" \
+            --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml \
+            "${ARTIFACTHUB_REPO_METADATA_PATH}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"

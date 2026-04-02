@@ -22,20 +22,28 @@ echo UTC > /etc/timezone
 
 mount --make-rshared /mnt/data
 
-# Optionally disable NetworkManager via systemd masking.
-case "${USE_DUMMY_NETWORKMANAGER:-0}" in
+use_dummy_networkmanager=0
+case "${USE_DUMMY_NETWORKMANAGER:-1}" in
   1|true|TRUE|yes|YES|on|ON)
+    use_dummy_networkmanager=1
     ln -sf /dev/null /etc/systemd/system/NetworkManager.service
-    mkdir -p /etc/systemd/system/multi-user.target.wants
-    ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
-    mkdir -p /etc/systemd/system/hassos-supervisor.service.d
-    cat > /etc/systemd/system/hassos-supervisor.service.d/override.conf <<'EOF'
+    ;;
+esac
+
+mkdir -p /etc/systemd/system/multi-user.target.wants
+ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
+mkdir -p /etc/systemd/system/hassos-supervisor.service.d
+cat > /etc/systemd/system/hassos-supervisor.service.d/override.conf <<'EOF'
 [Unit]
 After=haos-one-compat.service
 Requires=haos-one-compat.service
 EOF
-    ;;
-esac
+mkdir -p /etc/systemd/system/haos-one-compat.service.d
+cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -v /run/dbus:/run/dbus -v /run:/host-run haos_one_compat
+EOF
 
 # Optionally disable udev via systemd masking.
 case "${DISABLE_UDEV:-1}" in
@@ -47,13 +55,29 @@ case "${DISABLE_UDEV:-1}" in
     ;;
 esac
 
+# Disable the HA CLI login service for wrong-geometry console, for example for docker-compose.
+# https://github.com/qweritos/haos-one/issues/31
+disable_ha_cli=0
+if [ -c /dev/console ]; then
+  console_size="$(stty -F /dev/console size 2>/dev/null || true)"
+  case "$console_size" in
+    ''|0\ *|*\ 0)
+      disable_ha_cli=1
+      ;;
+  esac
+fi
+
+if [ "$disable_ha_cli" -eq 1 ]; then
+  ln -sf /dev/null /etc/systemd/system/ha-cli@console.service
+  ln -sf /dev/null /etc/systemd/system/ha-cli@tty1.service
+fi
+
 case "${DEV:-0}" in
   1|true|TRUE|yes|YES|on|ON)
-    mkdir -p /etc/systemd/system/haos-one-compat.service.d
-    cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<'EOF'
+    cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/docker run --name haos_one_compat -v /run/dbus:/run/dbus -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
+ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -v /run/dbus:/run/dbus -v /run:/host-run -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
 EOF
     ;;
 esac

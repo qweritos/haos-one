@@ -43,6 +43,10 @@ Simple as one command:
 docker run --name haos -ti --privileged -p 8123:8123 qweritos/haos-one
 ```
 
+> You can pin a specific Home Assistant OS version tag (including prereleases), for example `qweritos/haos-one:17.0.rc2`
+For available HAOS versions, see:
+https://github.com/home-assistant/operating-system/releases
+
 <p align="">
   <img alt="Intro" src="docs/assets/intro.webp" />
 </p>
@@ -123,7 +127,7 @@ docker exec -it haos systemctl restart docker
 
 | Name | Description | Default |
 | --- | --- | --- |
-| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable `haos-one-compat` | `0` |
+| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable the dummy responder inside `haos-one-compat` | `1` |
 | `DISABLE_UDEV` | Disable in-container udev services | `1` |
 | `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
 
@@ -157,7 +161,7 @@ See [docs](docs) for details.
 ## Known Issues
 
 - ~~`--network host` lets HA manage host networking and may cause misconfiguration.~~
-use `docker run ... -e USE_DUMMY_NETWORKMANAGER=1 ...` env var 
+`USE_DUMMY_NETWORKMANAGER=1` is enabled by default.
 - ~~`"Unsupported system - Network Manager issues"` warning - fix in progress.~~
 - ~~`Failed to get outbound IP, retrying in 5s: can't get default interface from Supervisor: {"result":"error","message":"Interface default does not exist"` in journal (with non-host networking) - fix in progress.~~
 - ~~Docker Desktop on MacOS becomes inaccessible if run with `--network=host`~~
