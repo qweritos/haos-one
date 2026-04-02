@@ -1,7 +1,11 @@
-# Dummy NetworkManager D-Bus Service
+# haos_one_compat
 
-This is a tiny, fake NetworkManager D-Bus responder. 
-It implements only the NetworkManager methods/properties that
+This container runs two compatibility shims:
+
+- a tiny fake NetworkManager D-Bus responder
+- a Docker UNIX-socket proxy that filters `/containers/json` and lightly tags `/info`
+
+The dummy NetworkManager service implements only the methods and properties that
 Supervisor uses, with static data and minimal state updates.
 
 Run on the session bus (default):
