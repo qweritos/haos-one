@@ -23,7 +23,7 @@ echo UTC > /etc/timezone
 mount --make-rshared /mnt/data
 
 # Optionally disable NetworkManager via systemd masking.
-case "${USE_DUMMY_NETWORKMANAGER:-0}" in
+case "${USE_DUMMY_NETWORKMANAGER:-1}" in
   1|true|TRUE|yes|YES|on|ON)
     ln -sf /dev/null /etc/systemd/system/NetworkManager.service
     mkdir -p /etc/systemd/system/multi-user.target.wants

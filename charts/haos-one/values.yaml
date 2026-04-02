@@ -9,7 +9,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 hostNetwork: false
-useDummyNetworkManager: false
+useDummyNetworkManager: true
 disableUdev: true
 useHostDevSerial: true
 
