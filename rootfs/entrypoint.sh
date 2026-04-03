@@ -22,6 +22,19 @@ echo UTC > /etc/timezone
 
 mount --make-rshared /mnt/data
 
+# Force Supervisor to treat each outer-container start as a fresh host boot.
+# `/proc/stat` is mirrored from the real host kernel here, so its `btime`
+# stays stable across outer-container restarts. Supervisor compares that host
+# btime with the persisted /mnt/data/supervisor/config.json last_boot and may
+# classify a container restart as "Detected Supervisor restart", skipping
+# Home Assistant/add-on boot.
+# https://github.com/qweritos/haos-one/issues/35
+if [ -f /mnt/data/supervisor/config.json ]; then
+  if config_json="$(jq '.last_boot = "1970-01-01T00:00:01+00:00"' /mnt/data/supervisor/config.json)"; then
+    printf '%s\n' "$config_json" > /mnt/data/supervisor/config.json
+  fi
+fi
+
 use_dummy_networkmanager=0
 case "${USE_DUMMY_NETWORKMANAGER:-1}" in
   1|true|TRUE|yes|YES|on|ON)
