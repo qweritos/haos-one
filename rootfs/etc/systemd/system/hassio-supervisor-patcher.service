@@ -2,6 +2,8 @@
 Description=Patch hassio_supervisor container after start
 After=docker.service
 Wants=docker.service
+After=haos-one-compat.service
+Requires=haos-one-compat.service
 
 [Service]
 Type=simple

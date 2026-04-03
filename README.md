@@ -127,7 +127,7 @@ docker exec -it haos systemctl restart docker
 
 | Name | Description | Default |
 | --- | --- | --- |
-| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable `haos-one-compat` | `1` |
+| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable the dummy responder inside `haos-one-compat` | `1` |
 | `DISABLE_UDEV` | Disable in-container udev services | `1` |
 | `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
 
