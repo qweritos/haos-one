@@ -45,12 +45,6 @@ esac
 
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
-mkdir -p /etc/systemd/system/hassos-supervisor.service.d
-cat > /etc/systemd/system/hassos-supervisor.service.d/override.conf <<'EOF'
-[Unit]
-After=haos-one-compat.service
-Requires=haos-one-compat.service
-EOF
 mkdir -p /etc/systemd/system/haos-one-compat.service.d
 cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
 [Service]
