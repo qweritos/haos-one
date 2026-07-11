@@ -47,6 +47,12 @@
       "description": "Enable host networking for the pod.",
       "default": false
     },
+    "dnsPolicy": {
+      "type": "string",
+      "enum": ["ClusterFirstWithHostNet", "ClusterFirst", "Default"],
+      "description": "Pod DNS policy.",
+      "default": "Default"
+    },
     "useDummyNetworkManager": {
       "type": "boolean",
       "description": "Enable dummy NetworkManager inside the container.",
@@ -313,6 +319,7 @@
     "nameOverride",
     "fullnameOverride",
     "hostNetwork",
+    "dnsPolicy",
     "useDummyNetworkManager",
     "disableUdev",
     "useHostDevSerial",

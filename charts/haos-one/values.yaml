@@ -9,6 +9,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 hostNetwork: false
+dnsPolicy: Default
 useDummyNetworkManager: true
 disableUdev: true
 useHostDevSerial: true

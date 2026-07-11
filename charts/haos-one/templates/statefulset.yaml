@@ -25,7 +25,7 @@ spec:
       {{- end }}
     spec:
       hostNetwork: {{ .Values.hostNetwork }}
-      dnsPolicy: {{ ternary "ClusterFirstWithHostNet" "ClusterFirst" .Values.hostNetwork }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
       containers:
         - name: haos-one
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
