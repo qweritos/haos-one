@@ -19,6 +19,7 @@ helm install haos-one oci://registry.andrey.wtf/charts/haos-one
 | `nameOverride` | Override chart name | empty |
 | `fullnameOverride` | Override release name | empty |
 | `hostNetwork` | Enable host networking | `false` |
+| `dnsPolicy` | Pod DNS policy | `Default` |
 | `useDummyNetworkManager` | Enable dummy NetworkManager inside the container | `true` |
 | `disableUdev` | Mask udev units via systemd in entrypoint | `true` |
 | `service.enabled` | Create a Service | `true` |
