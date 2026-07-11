@@ -11,7 +11,6 @@
       Add-ons supported, no compromises.
     </a>
     </h4>
-    <strong>🚧 Work In Progress 🚧</strong>
   </p>
 </div>
 
@@ -32,7 +31,7 @@
 - Use host hardware (like USB devices) directly without passthrough.
 - Use host networking for service autodiscovery, simpler routing, and lower latency.
 - __x86_64__ and __aarch64__ images available.
-- Rootless containers support (experimental)
+- Rootless containers support
 - Kubernetes? Sure. [Helm chart included](./charts/haos-one).
 
 ## How
