@@ -1,1 +1,11 @@
-/dev/null
+[Unit]
+Description=HAOS data mount provided by the outer container
+DefaultDependencies=no
+Before=local-fs.target umount.target
+Conflicts=umount.target
+
+[Mount]
+What=tmpfs
+Where=/mnt/data
+Type=tmpfs
+Options=mode=0755,x-systemd.device-bound=no
