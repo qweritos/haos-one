@@ -1,0 +1,11 @@
+[Unit]
+Description=Configure Supervisor job conditions for nested LXC
+After=haos-one-compat.service hassos-supervisor.service haos-supervisor.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/haos-supervisor-job-options
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

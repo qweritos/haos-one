@@ -130,6 +130,17 @@ Notably:
 - network APIs are not rewritten
 - other request bodies are not modified
 
+### Supervisor health gate
+
+An unprivileged outer LXC cannot provide the nested Supervisor container access
+to the kernel udev event monitor. Supervisor records the system as unhealthy with
+reason `privileged`, which normally blocks guarded jobs such as app installation.
+
+`haos-supervisor-job-options.service` waits for the Supervisor CLI plugin and uses
+its supported API command to persist `ignore_conditions: [healthy]` in the Job
+Manager. This keeps the unhealthy state visible while allowing guarded operations;
+it does not patch or modify Supervisor source code.
+
 ### Keep-alive caveat and fix
 
 The main runtime bug during development was that `curl` looked correct, but
