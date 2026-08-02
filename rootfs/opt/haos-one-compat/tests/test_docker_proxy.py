@@ -22,6 +22,8 @@ class DockerProxyTests(unittest.IsolatedAsyncioTestCase):
         self.upstream_path = self.root / "docker-real.sock"
         self.frontend_path = self.root / "docker.sock"
         self.requests: list[str] = []
+        self.request_headers: list[dict[str, str]] = []
+        self.request_bodies: list[bytes] = []
         self.upstream_server = await asyncio.start_unix_server(
             self._handle_upstream,
             path=str(self.upstream_path),
@@ -53,6 +55,30 @@ class DockerProxyTests(unittest.IsolatedAsyncioTestCase):
                 request_line = header.split(b"\r\n", 1)[0].decode("ascii")
                 _, path, _ = request_line.split(" ", 2)
                 self.requests.append(path)
+                headers = {}
+                for line in header.split(b"\r\n")[1:]:
+                    if b":" not in line:
+                        continue
+                    key, value = line.split(b":", 1)
+                    headers[key.decode("ascii").lower()] = value.decode("ascii").strip()
+                self.request_headers.append(headers)
+
+                if "content-length" in headers:
+                    body = await reader.readexactly(int(headers["content-length"]))
+                elif "chunked" in headers.get("transfer-encoding", "").lower():
+                    chunks = bytearray()
+                    while True:
+                        size_line = await reader.readuntil(b"\r\n")
+                        size = int(size_line.split(b";", 1)[0], 16)
+                        if size == 0:
+                            await reader.readuntil(b"\r\n")
+                            break
+                        chunks.extend(await reader.readexactly(size))
+                        await reader.readexactly(2)
+                    body = bytes(chunks)
+                else:
+                    body = b""
+                self.request_bodies.append(body)
 
                 if path == "/containers/json?all=1":
                     payload = json.dumps(
@@ -91,6 +117,39 @@ class DockerProxyTests(unittest.IsolatedAsyncioTestCase):
         writer.write(
             f"GET {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n".encode("ascii")
         )
+        await writer.drain()
+        raw = await reader.read()
+        writer.close()
+        await writer.wait_closed()
+        header, body = raw.split(b"\r\n\r\n", 1)
+        return header.decode("iso-8859-1"), body
+
+    async def _post_json(
+        self,
+        path: str,
+        payload: bytes,
+        *,
+        chunked: bool = False,
+    ) -> tuple[str, bytes]:
+        reader, writer = await asyncio.open_unix_connection(str(self.frontend_path))
+        if chunked:
+            request = (
+                f"POST {path} HTTP/1.1\r\n"
+                "Host: localhost\r\n"
+                "Content-Type: application/json\r\n"
+                "Transfer-Encoding: chunked\r\n"
+                "Connection: close\r\n\r\n"
+            ).encode("ascii")
+            request += f"{len(payload):X}\r\n".encode("ascii") + payload + b"\r\n0\r\n\r\n"
+        else:
+            request = (
+                f"POST {path} HTTP/1.1\r\n"
+                "Host: localhost\r\n"
+                "Content-Type: application/json\r\n"
+                f"Content-Length: {len(payload)}\r\n"
+                "Connection: close\r\n\r\n"
+            ).encode("ascii") + payload
+        writer.write(request)
         await writer.drain()
         raw = await reader.read()
         writer.close()
@@ -145,6 +204,50 @@ class DockerProxyTests(unittest.IsolatedAsyncioTestCase):
             json.loads(body),
             [{"Id": "2", "Names": ["/kept"], "Image": "busybox:latest"}],
         )
+
+    async def test_rewrites_container_create_request(self) -> None:
+        payload = json.dumps(
+            {
+                "Image": "alpine:latest",
+                "Hostname": "ha-test",
+                "Domainname": "homeassistant",
+                "HostConfig": {
+                    "DnsSearch": ["homeassistant"],
+                    "Ulimits": [{"Name": "nofile", "Soft": 1024, "Hard": 1024}],
+                },
+            }
+        ).encode("utf-8")
+
+        await self._post_json("/v1.47/containers/create?name=test", payload)
+
+        rewritten = json.loads(self.request_bodies[-1])
+        self.assertNotIn("Domainname", rewritten)
+        self.assertNotIn("Ulimits", rewritten["HostConfig"])
+        self.assertEqual(rewritten["Hostname"], "ha-test")
+        self.assertEqual(rewritten["HostConfig"]["DnsSearch"], ["homeassistant"])
+        self.assertEqual(
+            int(self.request_headers[-1]["content-length"]),
+            len(self.request_bodies[-1]),
+        )
+
+    async def test_rewrites_chunked_container_create_as_content_length(self) -> None:
+        payload = b'{"Image":"alpine","Domainname":"homeassistant"}'
+
+        await self._post_json("/containers/create", payload, chunked=True)
+
+        self.assertNotIn("Domainname", json.loads(self.request_bodies[-1]))
+        self.assertNotIn("transfer-encoding", self.request_headers[-1])
+        self.assertEqual(
+            int(self.request_headers[-1]["content-length"]),
+            len(self.request_bodies[-1]),
+        )
+
+    async def test_non_create_post_body_is_unchanged(self) -> None:
+        payload = b'{"Domainname":"untouched"}'
+
+        await self._post_json("/containers/test/start", payload)
+
+        self.assertEqual(self.request_bodies[-1], payload)
 
     async def test_replaces_stale_frontend_socket_path(self) -> None:
         await self.proxy.close()

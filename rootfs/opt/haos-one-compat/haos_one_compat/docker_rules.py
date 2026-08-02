@@ -7,14 +7,15 @@ import re
 from typing import Any
 from urllib.parse import urlsplit
 
-_TARGET_RE = re.compile(r"^/(?:v[^/]+/)?(info|containers/json)$")
+_RESPONSE_TARGET_RE = re.compile(r"^/(?:v[^/]+/)?(info|containers/json)$")
+_CREATE_TARGET_RE = re.compile(r"^/(?:v[^/]+/)?containers/create$")
 _HIDDEN_CONTAINER_NAMES = {"/haos_one_compat", "haos_one_compat"}
 _INFO_WARNING = "HAOS compat: intercepted"
 
 
 def normalize_target_path(path: str) -> str | None:
     """Normalize Docker API target paths across versioned and raw endpoints."""
-    match = _TARGET_RE.match(urlsplit(path).path)
+    match = _RESPONSE_TARGET_RE.match(urlsplit(path).path)
     if match is None:
         return None
     return f"/{match.group(1)}"
@@ -23,6 +24,38 @@ def normalize_target_path(path: str) -> str | None:
 def is_rewrite_target(path: str) -> bool:
     """Return True when the request path should be rewritten."""
     return normalize_target_path(path) is not None
+
+
+def is_create_request(path: str) -> bool:
+    """Return whether a Docker API path creates a container."""
+    return _CREATE_TARGET_RE.match(urlsplit(path).path) is not None
+
+
+def rewrite_create_request_payload(path: str, payload: bytes) -> bytes:
+    """Remove container-create options unsupported by nested unprivileged LXC."""
+    if not is_create_request(path):
+        return payload
+
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return payload
+
+    if not isinstance(data, dict):
+        return payload
+
+    changed = "Domainname" in data
+    data.pop("Domainname", None)
+
+    host_config = data.get("HostConfig")
+    if isinstance(host_config, dict) and "Ulimits" in host_config:
+        del host_config["Ulimits"]
+        changed = True
+
+    if not changed:
+        return payload
+
+    return json.dumps(data, separators=(",", ":")).encode("utf-8")
 
 
 def rewrite_json_payload(path: str, payload: bytes) -> bytes:

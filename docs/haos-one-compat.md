@@ -95,6 +95,10 @@ Supervisor marks the system unsupported when it sees extra software outside the
 expected Home Assistant container set. In this project, the extra container is
 `haos_one_compat` itself.
 
+Supervisor also includes `Domainname` and `HostConfig.Ulimits` in container-create
+requests. Docker cannot apply those settings inside an unprivileged nested LXC and
+fails during container start with a `/proc/sys/kernel/domainname` permission error.
+
 The relevant Supervisor logic is in `../supervisor/supervisor/resolution/evaluations/container.py`:
 
 - it lists Docker containers
@@ -102,7 +106,8 @@ The relevant Supervisor logic is in `../supervisor/supervisor/resolution/evaluat
 - unknown images become `UnsupportedReason.SOFTWARE`
 
 Instead of patching Supervisor, the proxy filters the compat container out of the
-Docker API response Supervisor consumes.
+Docker API response Supervisor consumes and removes the two unsupported create
+options before dockerd receives the request.
 
 ### What is intercepted
 
@@ -112,6 +117,9 @@ The current scope is intentionally small:
   - hides `haos_one_compat`
 - `/info`
   - adds `Warnings: ["HAOS compat: intercepted"]`
+- `/containers/create` (including versioned API paths)
+  - removes top-level `Domainname`
+  - removes `HostConfig.Ulimits`
 
 Everything else is passed through unchanged.
 
@@ -120,7 +128,7 @@ Notably:
 - `/version` is not modified
 - container inspect payloads are not rewritten
 - network APIs are not rewritten
-- request bodies are not modified
+- other request bodies are not modified
 
 ### Keep-alive caveat and fix
 
