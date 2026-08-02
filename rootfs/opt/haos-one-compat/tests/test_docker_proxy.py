@@ -230,6 +230,27 @@ class DockerProxyTests(unittest.IsolatedAsyncioTestCase):
             len(self.request_bodies[-1]),
         )
 
+    async def test_injects_udev_shim_into_supervisor_create(self) -> None:
+        self.proxy.inject_udev_shim = True
+        payload = json.dumps(
+            {
+                "Image": "ghcr.io/home-assistant/amd64-hassio-supervisor:latest",
+                "HostConfig": {},
+            }
+        ).encode()
+
+        await self._post_json(
+            "/v1.47/containers/create?name=hassio_supervisor",
+            payload,
+        )
+
+        rewritten = json.loads(self.request_bodies[-1])
+        self.assertIn("USE_UDEV_SHIM=active", rewritten["Env"])
+        self.assertIn(
+            "/opt/haos-one-compat/udev-shim:/opt/haos-udev-shim:ro",
+            rewritten["HostConfig"]["Binds"],
+        )
+
     async def test_rewrites_chunked_container_create_as_content_length(self) -> None:
         payload = b'{"Image":"alpine","Domainname":"homeassistant"}'
 

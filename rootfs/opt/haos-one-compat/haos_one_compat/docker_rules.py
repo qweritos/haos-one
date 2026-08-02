@@ -5,12 +5,14 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 _RESPONSE_TARGET_RE = re.compile(r"^/(?:v[^/]+/)?(info|containers/json)$")
 _CREATE_TARGET_RE = re.compile(r"^/(?:v[^/]+/)?containers/create$")
 _HIDDEN_CONTAINER_NAMES = {"/haos_one_compat", "haos_one_compat"}
 _INFO_WARNING = "HAOS compat: intercepted"
+_UDEV_SHIM_BIND = "/opt/haos-one-compat/udev-shim:/opt/haos-udev-shim:ro"
+_UDEV_SHIM_PATH = "/opt/haos-udev-shim"
 
 
 def normalize_target_path(path: str) -> str | None:
@@ -31,7 +33,12 @@ def is_create_request(path: str) -> bool:
     return _CREATE_TARGET_RE.match(urlsplit(path).path) is not None
 
 
-def rewrite_create_request_payload(path: str, payload: bytes) -> bytes:
+def rewrite_create_request_payload(
+    path: str,
+    payload: bytes,
+    *,
+    inject_udev_shim: bool = False,
+) -> bytes:
     """Remove container-create options unsupported by nested unprivileged LXC."""
     if not is_create_request(path):
         return payload
@@ -52,10 +59,110 @@ def rewrite_create_request_payload(path: str, payload: bytes) -> bytes:
         del host_config["Ulimits"]
         changed = True
 
+    if inject_udev_shim and _is_supervisor_create(path, data):
+        changed = _inject_udev_shim(data) or changed
+
     if not changed:
         return payload
 
     return json.dumps(data, separators=(",", ":")).encode("utf-8")
+
+
+def user_namespace_is_remapped(uid_map: str) -> bool:
+    """Return whether uid 0 is mapped away from host uid 0."""
+    try:
+        inside, outside, _length = (
+            int(value) for value in uid_map.splitlines()[0].split()
+        )
+    except (IndexError, ValueError):
+        return False
+    return inside == 0 and outside != 0
+
+
+def udev_shim_enabled(mode: str, uid_map: str) -> bool:
+    """Resolve USE_UDEV_SHIM mode using the current user namespace mapping."""
+    normalized = mode.strip().lower() or "auto"
+    if normalized == "force":
+        return True
+    if normalized == "off":
+        return False
+    if normalized == "auto":
+        return user_namespace_is_remapped(uid_map)
+    raise ValueError("USE_UDEV_SHIM must be one of: auto, force, off")
+
+
+def _is_supervisor_create(path: str, data: dict[str, Any]) -> bool:
+    target = urlsplit(path)
+    names = parse_qs(target.query).get("name", [])
+    if any(name.lstrip("/") == "hassio_supervisor" for name in names):
+        return True
+
+    image = data.get("Image")
+    return isinstance(image, str) and "hassio-supervisor" in image.lower()
+
+
+def _inject_udev_shim(data: dict[str, Any]) -> bool:
+    changed = False
+    host_config = data.setdefault("HostConfig", {})
+    if not isinstance(host_config, dict):
+        return False
+
+    binds = host_config.get("Binds")
+    if binds is None:
+        binds = []
+        host_config["Binds"] = binds
+        changed = True
+    if isinstance(binds, list) and not any(
+        isinstance(bind, str) and bind.split(":", 2)[1:2] == [_UDEV_SHIM_PATH]
+        for bind in binds
+    ):
+        binds.append(_UDEV_SHIM_BIND)
+        changed = True
+
+    environment = data.get("Env")
+    if environment is None:
+        environment = []
+        data["Env"] = environment
+        changed = True
+    if not isinstance(environment, list):
+        return changed
+
+    pythonpath_index = next(
+        (
+            index
+            for index, value in enumerate(environment)
+            if isinstance(value, str) and value.startswith("PYTHONPATH=")
+        ),
+        None,
+    )
+    if pythonpath_index is None:
+        environment.append(f"PYTHONPATH={_UDEV_SHIM_PATH}")
+        changed = True
+    else:
+        current = environment[pythonpath_index].split("=", 1)[1]
+        paths = current.split(":") if current else []
+        if _UDEV_SHIM_PATH not in paths:
+            environment[pythonpath_index] = (
+                f"PYTHONPATH={_UDEV_SHIM_PATH}:{current}"
+            ).rstrip(":")
+            changed = True
+
+    shim_index = next(
+        (
+            index
+            for index, value in enumerate(environment)
+            if isinstance(value, str) and value.startswith("USE_UDEV_SHIM=")
+        ),
+        None,
+    )
+    if shim_index is None:
+        environment.append("USE_UDEV_SHIM=active")
+        changed = True
+    elif environment[shim_index] != "USE_UDEV_SHIM=active":
+        environment[shim_index] = "USE_UDEV_SHIM=active"
+        changed = True
+
+    return changed
 
 
 def rewrite_json_payload(path: str, payload: bytes) -> bytes:

@@ -204,9 +204,18 @@ def _serialize_headers(headers: Iterable[tuple[str, str]]) -> bytes:
     return b"\r\n".join(lines)
 
 
-def rewrite_http_request(request: HTTPRequestHead, body: bytes) -> bytes:
+def rewrite_http_request(
+    request: HTTPRequestHead,
+    body: bytes,
+    *,
+    inject_udev_shim: bool = False,
+) -> bytes:
     """Serialize a container-create request with compatibility options removed."""
-    rewritten_body = rewrite_create_request_payload(request.path, body)
+    rewritten_body = rewrite_create_request_payload(
+        request.path,
+        body,
+        inject_udev_shim=inject_udev_shim,
+    )
     if rewritten_body == body:
         return request.raw + body
 
@@ -322,9 +331,16 @@ async def _bidirectional_relay(
 class DockerSocketProxy:
     """Expose the intercepted Docker API on a frontend UNIX socket."""
 
-    def __init__(self, frontend_path: str, upstream_path: str) -> None:
+    def __init__(
+        self,
+        frontend_path: str,
+        upstream_path: str,
+        *,
+        inject_udev_shim: bool = False,
+    ) -> None:
         self.frontend_path = frontend_path
         self.upstream_path = upstream_path
+        self.inject_udev_shim = inject_udev_shim
         self._server: asyncio.AbstractServer | None = None
 
     async def _wait_for_upstream(self, timeout: float = 30.0) -> None:
@@ -399,7 +415,11 @@ class DockerSocketProxy:
                 request = await _read_request_head(client_reader)
                 if is_create_request(request.path):
                     body, raw_body = await _read_request_body(request, client_reader)
-                    rewritten_request = rewrite_http_request(request, body)
+                    rewritten_request = rewrite_http_request(
+                        request,
+                        body,
+                        inject_udev_shim=self.inject_udev_shim,
+                    )
                     if rewritten_request == request.raw + body:
                         upstream_writer.write(request.raw + raw_body)
                     else:

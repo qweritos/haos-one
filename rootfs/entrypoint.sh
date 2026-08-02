@@ -43,24 +43,27 @@ case "${USE_DUMMY_NETWORKMANAGER:-1}" in
     ;;
 esac
 
+use_udev_shim="${USE_UDEV_SHIM:-auto}"
+case "$use_udev_shim" in
+  auto|force|off) ;;
+  *) echo "Unsupported USE_UDEV_SHIM=$use_udev_shim (use auto, force, or off)" >&2; exit 1 ;;
+esac
+
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
 mkdir -p /etc/systemd/system/haos-one-compat.service.d
 cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -v /run/dbus:/run/dbus -v /run:/host-run haos_one_compat
+ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -v /run/dbus:/run/dbus -v /run:/host-run haos_one_compat
 EOF
 
-# Optionally disable udev via systemd masking.
-case "${DISABLE_UDEV:-1}" in
-  1|true|TRUE|yes|YES|on|ON)
-    ln -sf /dev/null /etc/systemd/system/systemd-udevd.service
-    ln -sf /dev/null /etc/systemd/system/systemd-udevd-control.socket
-    ln -sf /dev/null /etc/systemd/system/systemd-udevd-kernel.socket
-    ln -sf /dev/null /etc/systemd/system/systemd-udev-trigger.service
-    ;;
-esac
+# Disable in-container udev; Supervisor uses host udev data and the compatibility
+# monitor when the outer runtime cannot expose kernel events.
+ln -sf /dev/null /etc/systemd/system/systemd-udevd.service
+ln -sf /dev/null /etc/systemd/system/systemd-udevd-control.socket
+ln -sf /dev/null /etc/systemd/system/systemd-udevd-kernel.socket
+ln -sf /dev/null /etc/systemd/system/systemd-udev-trigger.service
 
 # Disable the HA CLI login service for wrong-geometry console, for example for docker-compose.
 # https://github.com/qweritos/haos-one/issues/31
@@ -84,7 +87,7 @@ case "${DEV:-0}" in
     cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -v /run/dbus:/run/dbus -v /run:/host-run -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
+ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -v /run/dbus:/run/dbus -v /run:/host-run -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
 EOF
     ;;
 esac

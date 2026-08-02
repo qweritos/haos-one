@@ -11,7 +11,7 @@ fullnameOverride: ""
 hostNetwork: false
 dnsPolicy: Default
 useDummyNetworkManager: true
-disableUdev: true
+useUdevShim: auto
 useHostDevSerial: true
 
 service:

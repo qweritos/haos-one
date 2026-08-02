@@ -120,6 +120,7 @@ The current scope is intentionally small:
 - `/containers/create` (including versioned API paths)
   - removes top-level `Domainname`
   - removes `HostConfig.Ulimits`
+  - injects the Supervisor udev shim when enabled
 
 Everything else is passed through unchanged.
 
@@ -130,16 +131,25 @@ Notably:
 - network APIs are not rewritten
 - other request bodies are not modified
 
-### Supervisor health gate
+### Supervisor udev monitor
 
 An unprivileged outer LXC cannot provide the nested Supervisor container access
-to the kernel udev event monitor. Supervisor records the system as unhealthy with
-reason `privileged`, which normally blocks guarded jobs such as app installation.
+to the kernel udev event monitor. Without compatibility handling, Supervisor adds
+the `privileged` unhealthy reason and blocks guarded operations such as app
+installation.
 
-`haos-supervisor-job-options.service` waits for the Supervisor CLI plugin and uses
-its supported API command to persist `ignore_conditions: [healthy]` in the Job
-Manager. This keeps the unhealthy state visible while allowing guarded operations;
-it does not patch or modify Supervisor source code.
+For the `hassio_supervisor` create request only, the proxy can mount an isolated
+Python startup shim and prepend it to `PYTHONPATH`. The shim replaces the failing
+kernel event monitor with an idle pollable monitor. Static hardware enumeration
+continues to work, but live hardware hotplug events are unavailable.
+
+Set `USE_UDEV_SHIM` on the outer `haos` container:
+
+- `auto` (default) enables the shim when root is remapped through a user namespace
+- `force` always enables it
+- `off` disables it
+
+The shim does not edit Supervisor source or persist files inside its image.
 
 ### Keep-alive caveat and fix
 

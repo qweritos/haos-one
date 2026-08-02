@@ -127,7 +127,7 @@ docker exec -it haos systemctl restart docker
 | Name | Description | Default |
 | --- | --- | --- |
 | `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable the dummy responder inside `haos-one-compat` | `1` |
-| `DISABLE_UDEV` | Disable in-container udev services | `1` |
+| `USE_UDEV_SHIM` | Inject an idle Supervisor udev monitor when needed (`auto`, `force`, or `off`) | `auto` |
 | `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
 
 ## Troubleshooting
@@ -164,7 +164,7 @@ See [docs](docs) for details.
 - ~~`"Unsupported system - Network Manager issues"` warning - fix in progress.~~
 - ~~`Failed to get outbound IP, retrying in 5s: can't get default interface from Supervisor: {"result":"error","message":"Interface default does not exist"` in journal (with non-host networking) - fix in progress.~~
 - ~~Docker Desktop on MacOS becomes inaccessible if run with `--network=host`~~
-use `-e DISABLE_UDEV=1` for workaround (flag is enabled by default)
+in-container udev is masked automatically.
 
 
 ## TODOs & Progress:
