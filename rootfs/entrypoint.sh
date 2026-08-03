@@ -49,6 +49,9 @@ case "$use_udev_shim" in
   *) echo "Unsupported USE_UDEV_SHIM=$use_udev_shim (use auto, force, or off)" >&2; exit 1 ;;
 esac
 
+mkdir -p /etc/haos-one-compat
+printf '%s\n' "$use_udev_shim" > /etc/haos-one-compat/udev-shim-mode
+
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
 mkdir -p /etc/systemd/system/haos-one-compat.service.d

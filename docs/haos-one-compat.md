@@ -151,6 +151,13 @@ Set `USE_UDEV_SHIM` on the outer `haos` container:
 
 The shim does not edit Supervisor source or persist files inside its image.
 
+Before Supervisor starts, an idempotent migration inspects an existing
+`hassio_supervisor` container. When the shim is required but its environment or
+read-only mount is missing, the migration removes only that container. The
+standard HAOS service then recreates it through the proxy. Supervisor state under
+`/mnt/data/supervisor` is not removed. Already migrated containers are left
+untouched.
+
 ### Keep-alive caveat and fix
 
 The main runtime bug during development was that `curl` looked correct, but

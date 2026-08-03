@@ -130,6 +130,10 @@ docker exec -it haos systemctl restart docker
 | `USE_UDEV_SHIM` | Inject an idle Supervisor udev monitor when needed (`auto`, `force`, or `off`) | `auto` |
 | `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
 
+When the udev shim is enabled, upgrading an existing installation automatically
+recreates `hassio_supervisor` once if its stored container configuration lacks
+the shim. Data in `/mnt/data/supervisor` is preserved.
+
 ## Troubleshooting
 
 - Drop into HA CLI: `docker attach haos`
