@@ -160,6 +160,7 @@ See [docs](docs) for details.
 | Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server) <br />*(rootless & rootfull)*                        | ✅     | —                    |
 | Ubuntu 25.10 (Questing Quokka) | x86_64 | Podman 5.4.2                                                | ✅     | —                    |
 | Armbian OS 25.02.0 (bullseye) | aarch64 | Docker Engine 28.0.0 (client/server) | ✅ | — |
+| Proxmox VE 9.2.2 | x86_64 | Unprivileged LXC running nested Docker Engine 26.1.5+dfsg1 (client/server) <br />*(rootless & rootfull)* | ✅ | - |
 
 ## Known Issues
 
