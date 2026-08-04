@@ -58,10 +58,11 @@
       "description": "Enable dummy NetworkManager inside the container.",
       "default": true
     },
-    "disableUdev": {
-      "type": "boolean",
-      "description": "Mask udev units via systemd in entrypoint.",
-      "default": true
+    "useUdevShim": {
+      "type": "string",
+      "enum": ["auto", "force", "off"],
+      "description": "Supervisor udev compatibility mode.",
+      "default": "auto"
     },
     "useHostDevSerial": {
       "type": "boolean",
@@ -321,7 +322,7 @@
     "hostNetwork",
     "dnsPolicy",
     "useDummyNetworkManager",
-    "disableUdev",
+    "useUdevShim",
     "useHostDevSerial",
     "service",
     "ingress",

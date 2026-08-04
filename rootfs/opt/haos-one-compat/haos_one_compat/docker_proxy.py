@@ -11,7 +11,12 @@ from dataclasses import dataclass
 from email.parser import Parser
 from typing import Iterable
 
-from .docker_rules import is_rewrite_target, rewrite_json_payload
+from .docker_rules import (
+    is_create_request,
+    is_rewrite_target,
+    rewrite_create_request_payload,
+    rewrite_json_payload,
+)
 
 _LOGGER = logging.getLogger(__name__)
 _HTTP_HEADER_LIMIT = 1024 * 1024
@@ -135,6 +140,24 @@ async def _forward_request_body(
         await writer.drain()
 
 
+async def _read_request_body(
+    request: HTTPRequestHead,
+    reader: asyncio.StreamReader,
+) -> tuple[bytes, bytes]:
+    """Read a request body and return its decoded and original representations."""
+    content_length = request.header("Content-Length")
+    transfer_encoding = request.header("Transfer-Encoding")
+
+    if content_length:
+        body = await reader.readexactly(int(content_length))
+        return body, body
+
+    if transfer_encoding and "chunked" in transfer_encoding.lower():
+        return await _read_chunked_body(reader)
+
+    return b"", b""
+
+
 async def _read_response(
     reader: asyncio.StreamReader,
     request_method: str,
@@ -179,6 +202,38 @@ async def _read_response(
 def _serialize_headers(headers: Iterable[tuple[str, str]]) -> bytes:
     lines = [f"{key}: {value}".encode("iso-8859-1") for key, value in headers]
     return b"\r\n".join(lines)
+
+
+def rewrite_http_request(
+    request: HTTPRequestHead,
+    body: bytes,
+    *,
+    inject_udev_shim: bool = False,
+) -> bytes:
+    """Serialize a container-create request with compatibility options removed."""
+    rewritten_body = rewrite_create_request_payload(
+        request.path,
+        body,
+        inject_udev_shim=inject_udev_shim,
+    )
+    if rewritten_body == body:
+        return request.raw + body
+
+    headers = [
+        (key, value)
+        for key, value in request.headers
+        if key.lower() not in {"content-length", "transfer-encoding", "trailer"}
+    ]
+    headers.append(("Content-Length", str(len(rewritten_body))))
+    request_line = f"{request.method} {request.path} {request.version}".encode(
+        "iso-8859-1"
+    )
+    header_blob = _serialize_headers(headers)
+    parts = [request_line, b"\r\n"]
+    if header_blob:
+        parts.extend((header_blob, b"\r\n"))
+    parts.extend((b"\r\n", rewritten_body))
+    return b"".join(parts)
 
 
 def rewrite_http_response(path: str, response: HTTPResponse) -> bytes:
@@ -276,9 +331,16 @@ async def _bidirectional_relay(
 class DockerSocketProxy:
     """Expose the intercepted Docker API on a frontend UNIX socket."""
 
-    def __init__(self, frontend_path: str, upstream_path: str) -> None:
+    def __init__(
+        self,
+        frontend_path: str,
+        upstream_path: str,
+        *,
+        inject_udev_shim: bool = False,
+    ) -> None:
         self.frontend_path = frontend_path
         self.upstream_path = upstream_path
+        self.inject_udev_shim = inject_udev_shim
         self._server: asyncio.AbstractServer | None = None
 
     async def _wait_for_upstream(self, timeout: float = 30.0) -> None:
@@ -351,9 +413,22 @@ class DockerSocketProxy:
             )
             while True:
                 request = await _read_request_head(client_reader)
-                upstream_writer.write(request.raw)
-                await upstream_writer.drain()
-                await _forward_request_body(request, client_reader, upstream_writer)
+                if is_create_request(request.path):
+                    body, raw_body = await _read_request_body(request, client_reader)
+                    rewritten_request = rewrite_http_request(
+                        request,
+                        body,
+                        inject_udev_shim=self.inject_udev_shim,
+                    )
+                    if rewritten_request == request.raw + body:
+                        upstream_writer.write(request.raw + raw_body)
+                    else:
+                        upstream_writer.write(rewritten_request)
+                    await upstream_writer.drain()
+                else:
+                    upstream_writer.write(request.raw)
+                    await upstream_writer.drain()
+                    await _forward_request_body(request, client_reader, upstream_writer)
 
                 if _request_wants_tunnel(request):
                     await _bidirectional_relay(

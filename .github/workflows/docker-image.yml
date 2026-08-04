@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       HAOS_VERSION:
-        description: "HAOS release tag (for example: 15.2). Leave empty to use latest."
+        description: "HAOS version to build (for example: 15.2). Leave empty to use latest."
         required: false
         type: string
 
@@ -65,10 +65,8 @@ jobs:
             ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-amd64
-            type=raw,value=${{ env.HAOS_VERSION }}-amd64,enable=${{ env.HAOS_VERSION != '' }}
-            type=raw,value=${{ steps.major-version-tag.outputs.tag }}-amd64,enable=${{ steps.major-version-tag.outputs.tag != '' }}
-            type=raw,value=${{ github.ref_name }}-${{ env.HAOS_VERSION }}-amd64,enable=${{ env.HAOS_VERSION != '' && github.ref_name != 'master' }}
-            type=raw,value=${{ github.ref_name }}-${{ steps.major-version-tag.outputs.tag }}-amd64,enable=${{ steps.major-version-tag.outputs.tag != '' && github.ref_name != 'master' }}
+            type=raw,value=${{ env.HAOS_VERSION }}-amd64,enable=${{ github.ref_name == 'master' && env.HAOS_VERSION != '' }}
+            type=raw,value=${{ steps.major-version-tag.outputs.tag }}-amd64,enable=${{ github.ref_name == 'master' && steps.major-version-tag.outputs.tag != '' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -125,10 +123,8 @@ jobs:
             ${{ env.DOCKERHUB_IMAGE }}
           tags: |
             type=raw,value=${{ env.TAG_BASE }}-arm64
-            type=raw,value=${{ env.HAOS_VERSION }}-arm64,enable=${{ env.HAOS_VERSION != '' }}
-            type=raw,value=${{ steps.major-version-tag.outputs.tag }}-arm64,enable=${{ steps.major-version-tag.outputs.tag != '' }}
-            type=raw,value=${{ github.ref_name }}-${{ env.HAOS_VERSION }}-arm64,enable=${{ env.HAOS_VERSION != '' && github.ref_name != 'master' }}
-            type=raw,value=${{ github.ref_name }}-${{ steps.major-version-tag.outputs.tag }}-arm64,enable=${{ steps.major-version-tag.outputs.tag != '' && github.ref_name != 'master' }}
+            type=raw,value=${{ env.HAOS_VERSION }}-arm64,enable=${{ github.ref_name == 'master' && env.HAOS_VERSION != '' }}
+            type=raw,value=${{ steps.major-version-tag.outputs.tag }}-arm64,enable=${{ github.ref_name == 'master' && steps.major-version-tag.outputs.tag != '' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -179,40 +175,21 @@ jobs:
           docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${TAG_BASE}" \
             "${DOCKERHUB_IMAGE}:${TAG_BASE}-amd64" \
             "${DOCKERHUB_IMAGE}:${TAG_BASE}-arm64"
-          if [ -n "${HAOS_VERSION}" ]; then
+          if [ "${GITHUB_REF_NAME}" = "master" ] && [ -n "${HAOS_VERSION}" ]; then
             docker buildx imagetools create -t "${IMAGE_NAME}:${HAOS_VERSION}" \
               "${IMAGE_NAME}:${HAOS_VERSION}-amd64" \
               "${IMAGE_NAME}:${HAOS_VERSION}-arm64"
             docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${HAOS_VERSION}" \
               "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-amd64" \
               "${DOCKERHUB_IMAGE}:${HAOS_VERSION}-arm64"
-            if [ "${GITHUB_REF_NAME}" != "master" ]; then
-              docker buildx imagetools create -t "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}" \
-                "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}-amd64" \
-                "${IMAGE_NAME}:${GITHUB_REF_NAME}-${HAOS_VERSION}-arm64"
-              docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}" \
-                "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}-amd64" \
-                "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${HAOS_VERSION}-arm64"
-            fi
-            major_tag=""
             if [[ "${HAOS_VERSION}" =~ ^([0-9]+)\. ]]; then
               major_tag="${BASH_REMATCH[1]}"
-            fi
-            if [ -n "${major_tag}" ]; then
               docker buildx imagetools create -t "${IMAGE_NAME}:${major_tag}" \
                 "${IMAGE_NAME}:${major_tag}-amd64" \
                 "${IMAGE_NAME}:${major_tag}-arm64"
               docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${major_tag}" \
                 "${DOCKERHUB_IMAGE}:${major_tag}-amd64" \
                 "${DOCKERHUB_IMAGE}:${major_tag}-arm64"
-              if [ "${GITHUB_REF_NAME}" != "master" ]; then
-                docker buildx imagetools create -t "${IMAGE_NAME}:${GITHUB_REF_NAME}-${major_tag}" \
-                  "${IMAGE_NAME}:${GITHUB_REF_NAME}-${major_tag}-amd64" \
-                  "${IMAGE_NAME}:${GITHUB_REF_NAME}-${major_tag}-arm64"
-                docker buildx imagetools create -t "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${major_tag}" \
-                  "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${major_tag}-amd64" \
-                  "${DOCKERHUB_IMAGE}:${GITHUB_REF_NAME}-${major_tag}-arm64"
-              fi
             fi
           fi
 

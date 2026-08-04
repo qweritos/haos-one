@@ -3,7 +3,19 @@
 This container runs two compatibility shims:
 
 - a tiny fake NetworkManager D-Bus responder
-- a Docker UNIX-socket proxy that filters `/containers/json` and lightly tags `/info`
+- a Docker UNIX-socket proxy that filters `/containers/json`, lightly tags `/info`,
+  removes nested-LXC-incompatible options from container-create requests, and
+  injects an idle udev monitor into Supervisor when required
+
+`USE_UDEV_SHIM` controls Supervisor udev compatibility:
+
+- `auto` (default): enable when root is mapped through a user namespace
+- `force`: always enable
+- `off`: disable
+
+When compatibility is enabled, an existing Supervisor container created by an
+older image is recreated once if it does not yet contain the shim. Persistent
+Supervisor data is left intact.
 
 The dummy NetworkManager service implements only the methods and properties that
 Supervisor uses, with static data and minimal state updates.

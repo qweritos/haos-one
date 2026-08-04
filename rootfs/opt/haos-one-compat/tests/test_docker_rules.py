@@ -7,7 +7,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from haos_one_compat.docker_rules import normalize_target_path, rewrite_json_payload
+from haos_one_compat.docker_rules import (
+    is_create_request,
+    normalize_target_path,
+    rewrite_create_request_payload,
+    rewrite_json_payload,
+    udev_shim_enabled,
+    user_namespace_is_remapped,
+)
 
 
 class DockerRulesTests(unittest.TestCase):
@@ -57,3 +64,97 @@ class DockerRulesTests(unittest.TestCase):
     def test_non_target_payload_is_unchanged(self) -> None:
         payload = b'{"Version":"29.1.3","Os":"linux","Arch":"amd64"}'
         self.assertEqual(rewrite_json_payload("/version", payload), payload)
+
+    def test_recognizes_versioned_container_create_paths(self) -> None:
+        self.assertTrue(is_create_request("/containers/create"))
+        self.assertTrue(is_create_request("/v1.47/containers/create?name=test"))
+        self.assertFalse(is_create_request("/containers/json"))
+        self.assertFalse(is_create_request("/containers/test/start"))
+
+    def test_create_request_removes_domainname_and_ulimits(self) -> None:
+        payload = json.dumps(
+            {
+                "Image": "alpine:latest",
+                "Hostname": "ha-test",
+                "Domainname": "homeassistant",
+                "HostConfig": {
+                    "DnsSearch": ["homeassistant"],
+                    "Ulimits": [{"Name": "nofile", "Soft": 1024, "Hard": 1024}],
+                },
+            }
+        ).encode("utf-8")
+
+        rewritten = json.loads(
+            rewrite_create_request_payload(
+                "/v1.47/containers/create?name=test",
+                payload,
+            )
+        )
+
+        self.assertNotIn("Domainname", rewritten)
+        self.assertNotIn("Ulimits", rewritten["HostConfig"])
+        self.assertEqual(rewritten["Hostname"], "ha-test")
+        self.assertEqual(rewritten["HostConfig"]["DnsSearch"], ["homeassistant"])
+
+    def test_create_request_without_compat_fields_is_unchanged(self) -> None:
+        payload = b'{"Image":"alpine:latest","HostConfig":{"NetworkMode":"host"}}'
+        self.assertIs(
+            rewrite_create_request_payload("/containers/create", payload),
+            payload,
+        )
+
+    def test_supervisor_create_injects_udev_shim(self) -> None:
+        payload = json.dumps(
+            {
+                "Image": "ghcr.io/home-assistant/amd64-hassio-supervisor:latest",
+                "Env": ["PYTHONPATH=/existing", "OTHER=value"],
+                "HostConfig": {"Binds": ["/mnt/data:/data:rw"]},
+            }
+        ).encode()
+
+        rewritten = json.loads(
+            rewrite_create_request_payload(
+                "/v1.47/containers/create?name=hassio_supervisor",
+                payload,
+                inject_udev_shim=True,
+            )
+        )
+
+        self.assertIn(
+            "/opt/haos-one-compat/udev-shim:/opt/haos-udev-shim:ro",
+            rewritten["HostConfig"]["Binds"],
+        )
+        self.assertIn("PYTHONPATH=/opt/haos-udev-shim:/existing", rewritten["Env"])
+        self.assertIn("USE_UDEV_SHIM=active", rewritten["Env"])
+        self.assertIn("OTHER=value", rewritten["Env"])
+
+    def test_udev_shim_is_not_injected_into_other_containers(self) -> None:
+        payload = b'{"Image":"alpine:latest","HostConfig":{}}'
+
+        rewritten = rewrite_create_request_payload(
+            "/containers/create?name=homeassistant",
+            payload,
+            inject_udev_shim=True,
+        )
+
+        self.assertIs(rewritten, payload)
+
+    def test_udev_shim_mode_resolution(self) -> None:
+        remapped = "         0     100000      65536\n"
+        identity = "         0          0 4294967295\n"
+
+        self.assertTrue(user_namespace_is_remapped(remapped))
+        self.assertFalse(user_namespace_is_remapped(identity))
+        self.assertTrue(udev_shim_enabled("auto", remapped))
+        self.assertFalse(udev_shim_enabled("auto", identity))
+        self.assertTrue(udev_shim_enabled("force", identity))
+        self.assertFalse(udev_shim_enabled("off", remapped))
+        with self.assertRaisesRegex(ValueError, "USE_UDEV_SHIM"):
+            udev_shim_enabled("invalid", remapped)
+
+    def test_malformed_create_request_is_unchanged(self) -> None:
+        payload = b"not-json"
+        self.assertIs(
+            rewrite_create_request_payload("/containers/create", payload),
+            payload,
+        )

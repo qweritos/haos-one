@@ -8,6 +8,7 @@ import logging
 import os
 
 from .docker_proxy import DockerSocketProxy
+from .docker_rules import udev_shim_enabled
 from .dummy_nm import build_arg_parser as build_dummy_nm_arg_parser
 from .dummy_nm import run_service as run_dummy_nm_service
 
@@ -38,9 +39,23 @@ def build_arg_parser():
 
 
 async def run_services(args) -> None:
+    mode = os.getenv("USE_UDEV_SHIM", "auto")
+    try:
+        with open("/proc/self/uid_map", encoding="ascii") as uid_map_file:
+            uid_map = uid_map_file.read()
+        inject_udev_shim = udev_shim_enabled(mode, uid_map)
+    except (OSError, ValueError) as err:
+        raise RuntimeError(f"invalid USE_UDEV_SHIM configuration: {err}") from err
+
+    _LOGGER.info(
+        "Supervisor udev shim mode=%s enabled=%s",
+        mode or "auto",
+        inject_udev_shim,
+    )
     proxy = DockerSocketProxy(
         frontend_path=args.frontend_socket,
         upstream_path=args.upstream_socket,
+        inject_udev_shim=inject_udev_shim,
     )
     tasks = {
         asyncio.create_task(proxy.serve_forever(), name="docker-proxy"),

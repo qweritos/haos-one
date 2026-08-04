@@ -95,6 +95,10 @@ Supervisor marks the system unsupported when it sees extra software outside the
 expected Home Assistant container set. In this project, the extra container is
 `haos_one_compat` itself.
 
+Supervisor also includes `Domainname` and `HostConfig.Ulimits` in container-create
+requests. Docker cannot apply those settings inside an unprivileged nested LXC and
+fails during container start with a `/proc/sys/kernel/domainname` permission error.
+
 The relevant Supervisor logic is in `../supervisor/supervisor/resolution/evaluations/container.py`:
 
 - it lists Docker containers
@@ -102,7 +106,8 @@ The relevant Supervisor logic is in `../supervisor/supervisor/resolution/evaluat
 - unknown images become `UnsupportedReason.SOFTWARE`
 
 Instead of patching Supervisor, the proxy filters the compat container out of the
-Docker API response Supervisor consumes.
+Docker API response Supervisor consumes and removes the two unsupported create
+options before dockerd receives the request.
 
 ### What is intercepted
 
@@ -112,6 +117,10 @@ The current scope is intentionally small:
   - hides `haos_one_compat`
 - `/info`
   - adds `Warnings: ["HAOS compat: intercepted"]`
+- `/containers/create` (including versioned API paths)
+  - removes top-level `Domainname`
+  - removes `HostConfig.Ulimits`
+  - injects the Supervisor udev shim when enabled
 
 Everything else is passed through unchanged.
 
@@ -120,7 +129,34 @@ Notably:
 - `/version` is not modified
 - container inspect payloads are not rewritten
 - network APIs are not rewritten
-- request bodies are not modified
+- other request bodies are not modified
+
+### Supervisor udev monitor
+
+An unprivileged outer LXC cannot provide the nested Supervisor container access
+to the kernel udev event monitor. Without compatibility handling, Supervisor adds
+the `privileged` unhealthy reason and blocks guarded operations such as app
+installation.
+
+For the `hassio_supervisor` create request only, the proxy can mount an isolated
+Python startup shim and prepend it to `PYTHONPATH`. The shim replaces the failing
+kernel event monitor with an idle pollable monitor. Static hardware enumeration
+continues to work, but live hardware hotplug events are unavailable.
+
+Set `USE_UDEV_SHIM` on the outer `haos` container:
+
+- `auto` (default) enables the shim when root is remapped through a user namespace
+- `force` always enables it
+- `off` disables it
+
+The shim does not edit Supervisor source or persist files inside its image.
+
+Before Supervisor starts, an idempotent migration inspects an existing
+`hassio_supervisor` container. When the shim is required but its environment or
+read-only mount is missing, the migration removes only that container. The
+standard HAOS service then recreates it through the proxy. Supervisor state under
+`/mnt/data/supervisor` is not removed. Already migrated containers are left
+untouched.
 
 ### Keep-alive caveat and fix
 

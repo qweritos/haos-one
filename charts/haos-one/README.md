@@ -21,7 +21,7 @@ helm install haos-one oci://registry.andrey.wtf/charts/haos-one
 | `hostNetwork` | Enable host networking | `false` |
 | `dnsPolicy` | Pod DNS policy | `Default` |
 | `useDummyNetworkManager` | Enable dummy NetworkManager inside the container | `true` |
-| `disableUdev` | Mask udev units via systemd in entrypoint | `true` |
+| `useUdevShim` | Supervisor udev compatibility mode (`auto`, `force`, or `off`) | `auto` |
 | `service.enabled` | Create a Service | `true` |
 | `service.type` | Service type | `ClusterIP` |
 | `service.port` | Service port | `8123` |
