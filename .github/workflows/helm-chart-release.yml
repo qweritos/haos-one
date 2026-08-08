@@ -55,7 +55,6 @@ jobs:
           printf '%s' "${ANDREYWTF_GPG_PASSPHRASE}" > /tmp/.gpg-passphrase
           helm package "${CHART_PATH}" \
             --version "${VERSION}" \
-            --app-version "${VERSION}" \
             --sign \
             --key "${HELM_SIGNING_KEY}" \
             --keyring ./helm-secret.gpg \

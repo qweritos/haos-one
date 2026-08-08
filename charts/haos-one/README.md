@@ -14,7 +14,7 @@ helm install haos-one oci://registry.andrey.wtf/charts/haos-one
 | --- | ----------- | ------- |
 | `replicaCount` | Number of pods | `1` |
 | `image.repository` | Container image repository | `qweritos/haos-one` |
-| `image.tag` | Image tag | `latest` |
+| `image.tag` | Image tag | `18.2` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `nameOverride` | Override chart name | empty |
 | `fullnameOverride` | Override release name | empty |
