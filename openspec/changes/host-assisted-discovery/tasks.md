@@ -31,7 +31,7 @@
 - [ ] 5.1 Make `doctor` report runtime, endpoint, handshake, heartbeat/counters, routes, firewall/NAT state, and a test discovery result.
 - [x] 5.2 Make `cleanup` remove only recorded state, retain configuration by default, support `--purge`, and tolerate repeated or stale cleanup.
 - [ ] 5.3 Document opt-in setup, supported runtimes, administrator requirements, limitations, recovery, and default Colima compatibility.
-- [ ] 5.4 Publish self-contained host executables named `haos-one-net-mac-intel`, `haos-one-net-mac-apple-silicon`, and `haos-one-net-windows.exe`, with a separate `.sha256` checksum for each, alongside the container images; run userspace WireGuard in-process with no companion executable or archive extraction.
+- [ ] 5.4 Publish self-contained host executables named `haos-one-net-mac-intel`, `haos-one-net-mac-apple-silicon`, and `haos-one-net-windows.exe`, with one `SHA256SUMS` file covering all three executables, alongside the container images; run userspace WireGuard in-process with no companion executable or archive extraction.
 
 ## 6. Automated Verification
 
