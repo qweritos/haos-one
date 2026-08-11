@@ -161,7 +161,7 @@ The CLI SHALL diagnose each network layer and remove only recorded HAOS One stat
 ### Requirement: Cross-platform packaging and regression coverage
 As a maintainer, I want all guest and host artifacts built and tested for their supported platforms, so that releases do not regress discovery, fallback, or host networking safety.
 
-Releases SHALL contain the supported guest and host artifacts and SHALL be validated against discovery, routing, failure, and cleanup acceptance criteria.
+Releases SHALL contain the supported guest and self-contained host artifacts and SHALL be validated against discovery, routing, failure, and cleanup acceptance criteria.
 
 #### Scenario: Acceptance criteria
 - **Given** amd64 and arm64 HAOS One images are built
@@ -169,7 +169,10 @@ Releases SHALL contain the supported guest and host artifacts and SHALL be valid
 - **Then** each image contains the Linux guest agent, its systemd unit, and a bundled `wireguard-go` fallback
 - **Given** a project release is published
 - **When** host downloads are inspected
-- **Then** archives and checksums exist for macOS amd64, macOS arm64, and Windows amd64
+- **Then** standalone `haos-one-net-mac-intel`, `haos-one-net-mac-apple-silicon`, and `haos-one-net-windows.exe` executables plus a separate `.sha256` checksum for each executable exist
+- **Given** a host executable is downloaded
+- **When** it creates its userspace WireGuard tunnel
+- **Then** it runs the WireGuard engine in-process without requiring a separate `wireguard-go` executable, archive extraction, installer, or runtime dependency
 - **Given** Linux namespace integration fixtures
 - **When** the networking suite runs
 - **Then** it covers mDNS query, response, and announcement handling; SSDP search, reply, and notify handling; fragmentation; duplicate suppression; source preservation; route failover; and SNAT
