@@ -50,7 +50,10 @@ https://github.com/home-assistant/operating-system/releases
   <img alt="Intro" src="docs/assets/intro.webp" />
 </p>
 
-Replace `-p 8123:8123` with `--network host` if you want host networking (required for autodiscovery features).
+On native Linux, replace `-p 8123:8123` with `--network host` for autodiscovery.
+Docker Desktop and Colima users can instead use the opt-in
+[host-assisted discovery companion](docs/host-assisted-discovery.md), which
+supports mDNS and SSDP without exposing host networking from the VM.
 
 Wait for http://localhost:8123 to be available. Now you can create new House or restore from existing backup.
 
@@ -121,6 +124,8 @@ docker exec -it haos systemctl restart docker
   docker volume create haos-data
   docker run --name haos -ti --privileged -p 8123:8123 -v haos-data:/mnt/data qweritos/haos-one
   ```
+- Docker Desktop or Colima mDNS/SSDP discovery: see
+  [Host-assisted discovery](docs/host-assisted-discovery.md).
 
 ### Env vars
 
@@ -128,6 +133,7 @@ docker exec -it haos systemctl restart docker
 | --- | --- | --- |
 | `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable the dummy responder inside `haos-one-compat` | `1` |
 | `USE_UDEV_SHIM` | Inject an idle Supervisor udev monitor when needed (`auto`, `force`, or `off`) | `auto` |
+| `USE_DESKTOP_NETWORK` | Start the host-assisted discovery guest using `/etc/haos-one/desktop-network.yaml` | `0` |
 | `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
 
 When the udev shim is enabled, upgrading an existing installation automatically
@@ -150,6 +156,9 @@ See [docs](docs) for details.
 - Runs with `--privileged`, granting full access between host and container — see [more](https://docs.docker.com/enterprise/security/hardened-desktop/enhanced-container-isolation/#secured-privileged-containers).
 - `--network host` exposes services directly on the host network.
 - Protect `./data/` because it contains HA configuration and secrets.
+- Protect the generated host/guest network configuration because it contains
+  WireGuard private keys. The host agent also temporarily manages a dedicated
+  PF or WinNAT/firewall rule set while it is running.
 - AppArmor may be unavailable depending on your environment.
 
 ## Tested Environments
@@ -157,6 +166,7 @@ See [docs](docs) for details.
 | OS                             | Arch   | Env                                                         | Status | Notes                |
 | ------------------------------ | ------ | ----------------------------------------------------------- | ------ | -------------------- |
 | macOS 15.6 (24G84)             | x86_64 | Docker Desktop 4.55.0, Docker Engine 29.1.3 (client/server) | ✅     | AppArmor unavailable; use named volume (see [Recipes](#recipes)). |
+| macOS 15.6 (24G84)             | x86_64 | Colima 0.10.3, default shared network and SSH forwarder | ✅ | Host-assisted mDNS, SSDP, WireGuard routing, PF SNAT, and failover verified. |
 | Ubuntu 25.10 (Questing Quokka) | x86_64 | Docker Engine 29.1.3 (client/server) <br />*(rootless & rootfull)*                        | ✅     | —                    |
 | Ubuntu 25.10 (Questing Quokka) | x86_64 | Podman 5.4.2                                                | ✅     | —                    |
 | Armbian OS 25.02.0 (bullseye) | aarch64 | Docker Engine 28.0.0 (client/server) | ✅ | — |

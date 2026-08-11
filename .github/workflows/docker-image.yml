@@ -7,6 +7,10 @@ on:
         description: "HAOS version to build (for example: 15.2). Leave empty to use latest."
         required: false
         type: string
+      IMAGE_TAG:
+        description: "Optional Docker tag for branch previews (for example: host-assisted-discovery-preview)."
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -17,7 +21,7 @@ env:
   DOCKERHUB_IMAGE: qweritos/haos-one
   ARTIFACTHUB_REPO_METADATA_PATH: artifacthub-repo.yml
   HAOS_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.HAOS_VERSION || '' }}
-  TAG_BASE: ${{ github.ref_name == 'master' && github.event.inputs.HAOS_VERSION == '' && 'latest' || github.ref_name }}
+  TAG_BASE: ${{ github.event.inputs.IMAGE_TAG != '' && github.event.inputs.IMAGE_TAG || (github.ref_name == 'master' && github.event.inputs.HAOS_VERSION == '' && 'latest' || github.ref_name) }}
 
 # need separate jobs because we need kvm kernel module, and binfmt can't handle such requirement.
 # also, native platform-specific runners and parallel jobs are making process way faster.

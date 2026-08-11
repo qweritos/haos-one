@@ -1,3 +1,18 @@
+FROM golang:1.24-bookworm AS net-builder
+
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY cmd/haos-one-net ./cmd/haos-one-net
+COPY internal/netagent ./internal/netagent
+RUN target_arch="${TARGETARCH:-$(go env GOARCH)}" && \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${target_arch} \
+    go build -trimpath -ldflags="-s -w" -o /out/haos-one-net ./cmd/haos-one-net && \
+    CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${target_arch} \
+    go build -trimpath -ldflags="-s -w" -o /out/wireguard-go golang.zx2c4.com/wireguard
+
 FROM debian:stable-slim AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -55,6 +70,9 @@ LABEL org.opencontainers.image.description="Home Assistant Operating System: Sin
 LABEL io.artifacthub.package.readme-url="https://raw.githubusercontent.com/qweritos/haos-one/master/README.md"
 
 COPY --from=builder /rootfs/ /
+
+COPY --from=net-builder /out/haos-one-net /usr/local/bin/haos-one-net
+COPY --from=net-builder /out/wireguard-go /usr/local/bin/wireguard-go
 
 ADD ./rootfs /
 
