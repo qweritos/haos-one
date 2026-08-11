@@ -169,7 +169,7 @@ Releases SHALL contain the supported guest and self-contained host artifacts and
 - **Then** each image contains the Linux guest agent, its systemd unit, and a bundled `wireguard-go` fallback
 - **Given** a project release is published
 - **When** host downloads are inspected
-- **Then** standalone `haos-one-net-mac-intel`, `haos-one-net-mac-apple-silicon`, and `haos-one-net-windows.exe` executables plus a separate `.sha256` checksum for each executable exist
+- **Then** standalone `haos-one-net-mac-intel`, `haos-one-net-mac-apple-silicon`, and `haos-one-net-windows.exe` executables plus one `SHA256SUMS` file covering all three executables exist
 - **Given** a host executable is downloaded
 - **When** it creates its userspace WireGuard tunnel
 - **Then** it runs the WireGuard engine in-process without requiring a separate `wireguard-go` executable, archive extraction, installer, or runtime dependency
