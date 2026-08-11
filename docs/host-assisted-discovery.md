@@ -33,8 +33,8 @@ run `cleanup` after an unclean shutdown and after major macOS upgrades.
 
 ## Install the host CLI
 
-Download the executable for the host platform from the project release and
-verify it against the adjacent `.sha256` file:
+Download the executable for the host platform and `SHA256SUMS` from the
+project release, then verify the executable against that manifest:
 
 - `haos-one-net-mac-intel` for Intel Macs.
 - `haos-one-net-mac-apple-silicon` for Apple Silicon Macs.
