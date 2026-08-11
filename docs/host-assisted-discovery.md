@@ -104,7 +104,6 @@ Then start HAOS One. There is no WireGuard UDP port publication:
 docker volume create haos-data
 docker run --name haos -ti --privileged \
   -p 8123:8123 \
-  -e USE_DESKTOP_NETWORK=1 \
   -v "/absolute/path/to/guest.yaml:/etc/haos-one/desktop-network.yaml:ro" \
   -v haos-data:/mnt/data \
   qweritos/haos-one
@@ -117,8 +116,6 @@ services:
   haos:
     image: qweritos/haos-one
     privileged: true
-    environment:
-      USE_DESKTOP_NETWORK: "1"
     ports:
       - "8123:8123"
     volumes:

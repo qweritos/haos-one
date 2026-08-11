@@ -3,11 +3,11 @@
 - [x] 1.1 Implement `haos-one-net init`, `host run`, `doctor`, and `cleanup` with macOS and Windows command-line parity.
 - [x] 1.2 Generate protected host/guest WireGuard configuration, choose a non-overlapping `/30`, and preserve keys unless `--force` is explicit.
 - [x] 1.3 Detect Docker Desktop and Colima, default to the physical route interface, and support repeated LAN interface/CIDR overrides plus `--host-endpoint`.
-- [ ] 1.4 Generate Docker Run and Compose snippets that activate networking from the read-only guest configuration mount alone and whose advertised port 8123 reaches the active Home Assistant listener without a port-stripping redirect.
+- [x] 1.4 Generate Docker Run and Compose snippets that activate networking from the read-only guest configuration mount alone and whose advertised port 8123 reaches the active Home Assistant listener without a port-stripping redirect.
 
 ## 2. Guest Tunnel Lifecycle
 
-- [ ] 2.1 Embed the Linux guest agent and systemd unit in amd64 and arm64 images, automatically starting it when `/etc/haos-one/desktop-network.yaml` exists and leaving normal networking unchanged when it does not.
+- [x] 2.1 Embed the Linux guest agent and systemd unit in amd64 and arm64 images, automatically starting it when `/etc/haos-one/desktop-network.yaml` exists and leaving normal networking unchanged when it does not.
 - [x] 2.2 Prefer kernel WireGuard and bundle a `wireguard-go` fallback in the guest image, resolve the host endpoint, and pin it through the original VM route.
 - [x] 2.3 Activate `AllowedIPs` and LAN routes only after a valid handshake and heartbeat, then withdraw them after 15 seconds of host loss.
 - [x] 2.4 Refresh endpoint pinning and route state after VM, endpoint, default-route, or adapter address changes without rotating keys.

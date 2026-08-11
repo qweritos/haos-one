@@ -3,10 +3,25 @@ package netagent
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
+
+func TestDockerSnippetsActivateDesktopNetworkingFromMount(t *testing.T) {
+	result := &InitResult{HostPath: "/tmp/host.yaml", GuestPath: "/tmp/guest.yaml"}
+	snippets := DockerSnippets(result)
+	if strings.Contains(snippets, "USE_DESKTOP_") {
+		t.Fatal("generated snippets must not require a desktop-network activation environment variable")
+	}
+	if !strings.Contains(snippets, "/tmp/guest.yaml:/etc/haos-one/desktop-network.yaml:ro") {
+		t.Fatal("generated snippets do not contain the read-only guest configuration mount")
+	}
+	if !strings.Contains(snippets, "-p 8123:8123") || !strings.Contains(snippets, `- "8123:8123"`) {
+		t.Fatal("generated snippets do not publish the Home Assistant port")
+	}
+}
 
 func TestTunnelAddresses(t *testing.T) {
 	host, guest, err := TunnelAddresses("10.203.1.4/30")

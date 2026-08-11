@@ -437,20 +437,17 @@ func DockerSnippets(result *InitResult) string {
 
 Docker Run:
   docker run --name haos -ti --privileged -p 8123:8123 %s
-    -e USE_DESKTOP_NETWORK=1 %s
     -v %s %s
     -v haos-data:/mnt/data qweritos/haos-one
 
 Compose service fields:
   privileged: true
-  environment:
-    USE_DESKTOP_NETWORK: "1"
   ports:
     - "8123:8123"
   volumes:
     - %s
     - haos-data:/mnt/data
-`, hostCommand, continuation, continuation, shellQuote(mount), continuation, strconv.Quote(mount))
+`, hostCommand, continuation, shellQuote(mount), continuation, strconv.Quote(mount))
 }
 
 func shellQuote(value string) string {
