@@ -8,7 +8,7 @@
 ## 2. Guest Tunnel Lifecycle
 
 - [ ] 2.1 Embed the Linux guest agent and systemd unit in amd64 and arm64 images, automatically starting it when `/etc/haos-one/desktop-network.yaml` exists and leaving normal networking unchanged when it does not.
-- [x] 2.2 Prefer kernel WireGuard, bundle a `wireguard-go` fallback, resolve the host endpoint, and pin it through the original VM route.
+- [x] 2.2 Prefer kernel WireGuard and bundle a `wireguard-go` fallback in the guest image, resolve the host endpoint, and pin it through the original VM route.
 - [x] 2.3 Activate `AllowedIPs` and LAN routes only after a valid handshake and heartbeat, then withdraw them after 15 seconds of host loss.
 - [x] 2.4 Refresh endpoint pinning and route state after VM, endpoint, default-route, or adapter address changes without rotating keys.
 
@@ -31,7 +31,7 @@
 - [ ] 5.1 Make `doctor` report runtime, endpoint, handshake, heartbeat/counters, routes, firewall/NAT state, and a test discovery result.
 - [x] 5.2 Make `cleanup` remove only recorded state, retain configuration by default, support `--purge`, and tolerate repeated or stale cleanup.
 - [ ] 5.3 Document opt-in setup, supported runtimes, administrator requirements, limitations, recovery, and default Colima compatibility.
-- [ ] 5.4 Publish checksummed host archives for macOS amd64/arm64 and Windows amd64 alongside the container images.
+- [ ] 5.4 Publish self-contained host executables named `haos-one-net-mac-intel`, `haos-one-net-mac-apple-silicon`, and `haos-one-net-windows.exe`, with a separate `.sha256` checksum for each, alongside the container images; run userspace WireGuard in-process with no companion executable or archive extraction.
 
 ## 6. Automated Verification
 
