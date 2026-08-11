@@ -133,8 +133,8 @@ func RunHost(ctx context.Context, cfg *Config) error {
 		if err != nil {
 			return err
 		}
-		if tunnel.Helper != nil && tunnel.Helper.Process != nil {
-			state.HelperPID = tunnel.Helper.Process.Pid
+		if tunnel.Helper != nil && tunnel.Helper.PID() > 0 {
+			state.HelperPID = tunnel.Helper.PID()
 			if err := SaveState(cfg.StateFile, state); err != nil {
 				_ = cleanupHost(context.Background(), state)
 				return err

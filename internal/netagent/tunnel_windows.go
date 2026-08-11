@@ -6,21 +6,12 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os/exec"
 	"strings"
 )
 
-func createTunnelInterface(ctx context.Context, cfg *Config) (string, *exec.Cmd, error) {
-	helper, err := findHelper()
-	if err != nil {
-		return "", nil, err
-	}
+func createTunnelInterface(_ context.Context, cfg *Config) (string, tunnelHelper, error) {
 	name := tunnelInterfaceName(cfg.Role)
-	cmd := exec.CommandContext(ctx, helper, name)
-	if err := cmd.Start(); err != nil {
-		return "", nil, err
-	}
-	return name, cmd, nil
+	return startUserspaceWireGuard(name, cfg.MTU)
 }
 
 func configureInterfaceAddress(ctx context.Context, name string, cfg *Config) error {

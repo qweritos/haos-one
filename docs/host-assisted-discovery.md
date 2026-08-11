@@ -33,15 +33,23 @@ run `cleanup` after an unclean shutdown and after major macOS upgrades.
 
 ## Install the host CLI
 
-Download the archive for the host architecture from the project release,
-verify it against `SHA256SUMS`, and place both `haos-one-net` and
-`wireguard-go` in the same directory on `PATH`.
+Download the executable for the host platform from the project release and
+verify it against the adjacent `.sha256` file:
+
+- `haos-one-net-mac-intel` for Intel Macs.
+- `haos-one-net-mac-apple-silicon` for Apple Silicon Macs.
+- `haos-one-net-windows.exe` for 64-bit Windows.
+
+The download is self-contained; no archive extraction, separate
+`wireguard-go`, or installer is required. Rename or install it as
+`haos-one-net` somewhere on `PATH`. On Windows the executable verifies and
+loads its embedded, signed Wintun component from a private per-user cache when
+the tunnel starts.
 
 For development from this checkout:
 
 ```bash
 go build -o ./bin/haos-one-net ./cmd/haos-one-net
-go build -o ./bin/wireguard-go golang.zx2c4.com/wireguard
 ```
 
 ## Generate configuration

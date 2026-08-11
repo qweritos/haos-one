@@ -17,9 +17,34 @@ import (
 
 type Tunnel struct {
 	Name       string
-	Helper     *exec.Cmd
+	Helper     tunnelHelper
 	Config     *Config
 	EndpointIP net.IP
+}
+
+type tunnelHelper interface {
+	Close() error
+	PID() int
+}
+
+type commandTunnelHelper struct {
+	command *exec.Cmd
+}
+
+func (h *commandTunnelHelper) Close() error {
+	if h == nil || h.command == nil || h.command.Process == nil {
+		return nil
+	}
+	_ = h.command.Process.Kill()
+	_, _ = h.command.Process.Wait()
+	return nil
+}
+
+func (h *commandTunnelHelper) PID() int {
+	if h == nil || h.command == nil || h.command.Process == nil {
+		return 0
+	}
+	return h.command.Process.Pid
 }
 
 func StartTunnel(ctx context.Context, cfg *Config) (*Tunnel, error) {
@@ -203,9 +228,8 @@ func (t *Tunnel) Close(ctx context.Context) error {
 		_ = unpinEndpointRoute(ctx, t.EndpointIP)
 	}
 	err := removeTunnelInterface(ctx, t.Name)
-	if t.Helper != nil && t.Helper.Process != nil {
-		_ = t.Helper.Process.Kill()
-		_, _ = t.Helper.Process.Wait()
+	if t.Helper != nil {
+		_ = t.Helper.Close()
 	}
 	return err
 }

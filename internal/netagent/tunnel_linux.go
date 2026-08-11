@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func createTunnelInterface(ctx context.Context, cfg *Config) (string, *exec.Cmd, error) {
+func createTunnelInterface(ctx context.Context, cfg *Config) (string, tunnelHelper, error) {
 	name := tunnelInterfaceName(cfg.Role)
 	if err := runCommand(ctx, "ip", "link", "show", "dev", name); err == nil {
 		if _, markerErr := os.Stat(linuxOwnerMarker); markerErr != nil {
@@ -40,7 +40,7 @@ func createTunnelInterface(ctx context.Context, cfg *Config) (string, *exec.Cmd,
 		_ = cmd.Process.Kill()
 		return "", nil, markerErr
 	}
-	return name, cmd, nil
+	return name, &commandTunnelHelper{command: cmd}, nil
 }
 
 func configureInterfaceAddress(ctx context.Context, name string, cfg *Config) error {

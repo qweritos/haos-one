@@ -6,34 +6,10 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"os"
-	"os/exec"
-	"path/filepath"
 )
 
-func createTunnelInterface(ctx context.Context, cfg *Config) (string, *exec.Cmd, error) {
-	helper, err := findHelper()
-	if err != nil {
-		return "", nil, err
-	}
-	dir, err := os.MkdirTemp("", "haos-one-wg-")
-	if err != nil {
-		return "", nil, err
-	}
-	nameFile := filepath.Join(dir, "name")
-	cmd := exec.CommandContext(ctx, helper, "-f", "utun")
-	cmd.Env = append(os.Environ(), "WG_TUN_NAME_FILE="+nameFile)
-	if err := cmd.Start(); err != nil {
-		_ = os.RemoveAll(dir)
-		return "", nil, err
-	}
-	name, err := waitForFile(ctx, nameFile)
-	_ = os.RemoveAll(dir)
-	if err != nil {
-		_ = cmd.Process.Kill()
-		return "", nil, err
-	}
-	return name, cmd, nil
+func createTunnelInterface(_ context.Context, cfg *Config) (string, tunnelHelper, error) {
+	return startUserspaceWireGuard("utun", cfg.MTU)
 }
 
 func configureInterfaceAddress(ctx context.Context, name string, cfg *Config) error {
