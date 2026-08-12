@@ -61,6 +61,12 @@ ExecStart=
 ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -v /run/dbus:/run/dbus -v /run:/host-run haos_one_compat
 EOF
 
+if [ -r /etc/haos-one/desktop-network.yaml ]; then
+  ln -sf /etc/systemd/system/haos-one-net.service /etc/systemd/system/multi-user.target.wants/haos-one-net.service
+else
+  rm -f /etc/systemd/system/multi-user.target.wants/haos-one-net.service
+fi
+
 # Disable in-container udev; Supervisor uses host udev data and the compatibility
 # monitor when the outer runtime cannot expose kernel events.
 ln -sf /dev/null /etc/systemd/system/systemd-udevd.service

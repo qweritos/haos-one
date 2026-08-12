@@ -1,0 +1,58 @@
+name: Publish Host Networking Companion
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build standalone executables
+        shell: bash
+        env:
+          VERSION: ${{ github.event.release.tag_name || github.ref_name }}
+        run: |
+          set -euo pipefail
+          VERSION="${VERSION//\//-}"
+          mkdir -p dist/net
+          build_binary() {
+            os="$1"
+            arch="$2"
+            output="$3"
+            CGO_ENABLED=0 GOOS="${os}" GOARCH="${arch}" \
+              go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
+              -o "dist/net/${output}" ./cmd/haos-one-net
+          }
+          build_binary darwin amd64 haos-one-net-mac-intel
+          build_binary darwin arm64 haos-one-net-mac-apple-silicon
+          build_binary windows amd64 haos-one-net-windows.exe
+          (cd dist/net && sha256sum -- \
+            haos-one-net-mac-intel \
+            haos-one-net-mac-apple-silicon \
+            haos-one-net-windows.exe > SHA256SUMS)
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: haos-one-net
+          path: dist/net/*
+
+      - name: Attach release assets
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/net/*

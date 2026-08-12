@@ -1,0 +1,17 @@
+[Unit]
+Description=HAOS One host-assisted LAN discovery
+After=network-online.target
+Wants=network-online.target
+Before=haos-supervisor.service hassos-supervisor.service
+ConditionPathExists=/etc/haos-one/desktop-network.yaml
+
+[Service]
+Type=simple
+Environment=HAOS_ONE_NET_CONFIG=/etc/haos-one/desktop-network.yaml
+ExecStart=/usr/local/bin/haos-one-net guest run
+Restart=always
+RestartSec=3s
+TimeoutStopSec=20s
+
+[Install]
+WantedBy=multi-user.target
