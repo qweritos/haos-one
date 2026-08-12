@@ -26,3 +26,8 @@
 - [ ] 4.3 Upgrade an existing configured Colima instance without rotating keys or data, verify HTTP ingress plus mDNS/SSDP, and confirm no compatibility image/container or Python daemon remains.
 - [ ] 4.4 Smoke-test the unified agent and renamed host binary on Docker Desktop for macOS and Windows, including Supervisor startup, fake NetworkManager state, udev-shim migration, cleanup, and helper recovery.
 - [ ] 4.5 Download the published prerelease assets, verify the aggregate checksums, pull both published image architectures, and prepare concise migration and reviewer notes.
+
+## 5. License Compatibility
+
+- [ ] 5.1 Inventory the direct and transitive Go modules, copied/generated source, bundled `wireguard-go`, and embedded platform assets included in each host and agent binary; verify permissive Go dependencies, required attribution texts, and Wintun's separate prebuilt-binary redistribution terms.
+- [ ] 5.2 Add a deterministic license bundle to the repository, embed it in both utilities, expose it through `haos-one-host licenses` and `haos-one-agent --licenses`, install it at a documented image path, and verify release artifacts without adding a third-party-notices release section or CI license check.

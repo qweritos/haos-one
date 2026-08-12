@@ -68,6 +68,27 @@ As a release tester, I want clearly named standalone host downloads and an embed
 - **When** compatibility is diagnosed
 - **Then** both expose build and relay protocol versions sufficient to identify an incompatible pair
 
+### Requirement: License-compatible self-contained binaries
+As a maintainer, I want every component built into the standalone utilities to have compatible redistribution terms, so that project code can remain Apache-2.0 while bundled components retain their applicable licenses.
+The release process SHALL reject any compiled, linked, copied, or embedded input whose license is unknown or incompatible with the combined distribution.
+
+#### Scenario: Acceptance criteria
+- **Given** `haos-one-host`, `haos-one-agent`, or the bundled `wireguard-go` helper is built
+- **When** its complete build inputs are evaluated
+- **Then** all direct and transitive Go modules, copied or generated source, and embedded binary assets have mutually compatible redistribution terms
+- **Given** platform-specific code or assets such as Wintun are compiled, linked, copied, or embedded into a release artifact
+- **When** release verification runs
+- **Then** the applicable source and binary redistribution rights are explicitly covered and Wintun remains identified under its own prebuilt-binary license rather than Apache-2.0
+- **Given** a dependency or embedded asset has an unknown, unapproved, incompatible, or redistribution-restricted license
+- **When** release inputs are reviewed
+- **Then** the build fails before binaries or images are published
+- **Given** a standalone host or agent binary is distributed
+- **When** a user requests its licenses through the supported command-line flag or command
+- **Then** it emits the complete deterministic license bundle for project code, the Go standard library, linked modules, and embedded assets
+- **Given** a HAOS One image is distributed
+- **When** its filesystem is inspected
+- **Then** the same license bundle is available at a documented path without relying on a manually maintained release-notes section
+
 ## MODIFIED Requirements
 
 ### Requirement: Host-assisted networking activation
