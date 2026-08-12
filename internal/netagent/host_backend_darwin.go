@@ -43,12 +43,12 @@ func prepareHost(ctx context.Context, cfg *Config, tunnel *Tunnel) (*State, erro
 		state.PFToken = match[1]
 	}
 	var rules strings.Builder
-	fmt.Fprintf(&rules, "table <haos_one_lan> const { %s }\n", strings.Join(cfg.LANCIDRs, ", "))
 	for _, iface := range cfg.Interfaces {
-		fmt.Fprintf(&rules, "nat on %s inet from %s to <haos_one_lan> -> (%s)\n", iface, cfg.TunnelCIDR, iface)
-		fmt.Fprintf(&rules, "pass out quick on %s inet from %s to <haos_one_lan> keep state\n", iface, cfg.TunnelCIDR)
+		fmt.Fprintf(&rules, "nat on %s inet from %s to any -> (%s)\n", iface, cfg.TunnelCIDR, iface)
+		fmt.Fprintf(&rules, "pass out quick on %s inet from %s to any keep state\n", iface, cfg.TunnelCIDR)
+		fmt.Fprintf(&rules, "pass in quick on %s inet proto tcp to (%s) port %d keep state\n", iface, iface, cfg.EffectiveHTTPPort())
 	}
-	fmt.Fprintf(&rules, "pass in quick on %s inet from %s to <haos_one_lan> keep state\n", tunnel.Name, cfg.TunnelCIDR)
+	fmt.Fprintf(&rules, "pass in quick on %s inet from %s to any keep state\n", tunnel.Name, cfg.TunnelCIDR)
 	fmt.Fprintf(&rules, "pass in quick inet proto udp to any port %d keep state\n", cfg.ListenPort)
 	dir, err := os.MkdirTemp("", "haos-one-pf-")
 	if err != nil {
@@ -95,7 +95,7 @@ func removeGuestRoutes(ctx context.Context, tunnel string, cidrs []string) error
 	return nil
 }
 
-func injectUDP(source net.IP, sourcePort int, destination net.IP, destinationPort int, ttl int, payload []byte) error {
+func injectUDP(source net.IP, sourcePort int, destination net.IP, destinationPort int, ttl int, payload []byte, interfaceName string) error {
 	return fmt.Errorf("packet injection is only supported by the Linux guest")
 }
 

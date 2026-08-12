@@ -4,6 +4,7 @@
 - [x] 1.2 Generate protected host/guest WireGuard configuration, choose a non-overlapping `/30`, and preserve keys unless `--force` is explicit.
 - [x] 1.3 Detect Docker Desktop and Colima, default to the physical route interface, and support repeated LAN interface/CIDR overrides plus `--host-endpoint`.
 - [x] 1.4 Generate Docker Run and Compose snippets that activate networking from the read-only guest configuration mount alone and whose advertised port 8123 reaches the active Home Assistant listener without a port-stripping redirect.
+- [x] 1.5 Remove Docker host networking and port publication from helper-mode snippets, add configurable `.local` DNS naming defaulting to `homeassistant.local`, and resolve command configuration through `HAOS_ONE_NET_CONFIG` when `--config` is absent.
 
 ## 2. Guest Tunnel Lifecycle
 
@@ -11,6 +12,8 @@
 - [x] 2.2 Prefer kernel WireGuard and bundle a `wireguard-go` fallback in the guest image, resolve the host endpoint, and pin it through the original VM route.
 - [x] 2.3 Activate `AllowedIPs` and LAN routes only after a valid handshake and heartbeat, then withdraw them after 15 seconds of host loss.
 - [x] 2.4 Refresh endpoint pinning and route state after VM, endpoint, default-route, or adapter address changes without rotating keys.
+- [x] 2.5 After authentication, install split-default IPv4 routes and retain only the original-route endpoint escape path so helper loss does not silently restore Docker or Colima egress.
+- [x] 2.6 When the dummy NetworkManager interceptor is enabled, conditionally project an active HAOS One-owned `haoswg0` as Supervisor's primary fake-Ethernet connection and fall back to the ordinary `eth0` view when the projection is absent or stale.
 
 ## 3. Host Forwarding and NAT
 
@@ -18,6 +21,7 @@
 - [x] 3.2 Implement Windows WireGuard/Wintun setup, interface forwarding, Private-profile firewall rules, and compatible WinNAT reuse or `/30` allocation.
 - [x] 3.3 Record all owned interfaces, routes, forwarding changes, firewall/PF rules, and NAT state for safe stale-state recovery and idempotent cleanup.
 - [x] 3.4 Monitor selected adapter membership and addresses, refreshing forwarding and NAT without disturbing unrelated host networks.
+- [x] 3.5 Extend host SNAT to all guest external IPv4 traffic and add an owned TCP 8123 listener that forwards to the guest through WireGuard with occupied-port diagnostics and cleanup.
 
 ## 4. Discovery Relay
 
@@ -25,12 +29,14 @@
 - [x] 4.2 Forward mDNS queries to selected LAN interfaces and inject responses and unsolicited announcements with preserved source identity and TTL semantics.
 - [x] 4.3 Forward SSDP `M-SEARCH` to multicast and broadcast, correlate replies for `MX + 2s`, and relay LAN `NOTIFY` messages inward.
 - [x] 4.4 Inject discovery into the outer-container namespace used by nested Home Assistant Core while preventing container-originated advertisements from reaching the LAN.
+- [x] 4.5 Publish controlled A, PTR, SRV, and TXT mDNS records for the configured Home Assistant name and host LAN address, including query responses, refreshes, adapter changes, and goodbye packets.
 
 ## 5. Diagnostics, Documentation, and Release Artifacts
 
 - [ ] 5.1 Make `doctor` report runtime, endpoint, handshake, heartbeat/counters, routes, firewall/NAT state, and a test discovery result.
 - [x] 5.2 Make `cleanup` remove only recorded state, retain configuration by default, support `--purge`, and tolerate repeated or stale cleanup.
 - [ ] 5.3 Document opt-in setup, supported runtimes, administrator requirements, limitations, recovery, and default Colima compatibility.
+- [x] 5.5 Document default WireGuard egress, host-owned HTTP ingress, configurable DNS naming, config-path environment precedence, and intentional helper dependency.
 - [x] 5.4 Publish self-contained host executables named `haos-one-net-mac-intel`, `haos-one-net-mac-apple-silicon`, and `haos-one-net-windows.exe`, with one `SHA256SUMS` file covering all three executables, alongside the container images; run userspace WireGuard in-process with no companion executable or archive extraction.
 
 ## 6. Automated Verification
@@ -39,6 +45,7 @@
 - [ ] 6.2 Add Linux namespace integration tests for mDNS, SSDP, source preservation, route failover, and host-side SNAT.
 - [ ] 6.3 Add a black-box Home Assistant test with synthetic mDNS/SSDP devices, advertised-address connectivity, SNAT-source verification, and outbound-advertisement suppression.
 - [ ] 6.4 Add failure tests for host termination, VM restart, endpoint changes, overlapping prefixes, multiple adapters, occupied ports, stale state, and repeated cleanup.
+- [x] 6.5 Add focused tests for config-path precedence, DNS-name validation and packets, port-free snippets, split-default route activation, and HTTP forwarding.
 
 ## 7. Runtime Validation and Wrap Up
 

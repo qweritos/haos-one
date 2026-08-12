@@ -34,7 +34,10 @@ func prepareUserspaceWireGuard() (func(), error) {
 	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create private Wintun cache: %w", err)
 	}
-	path := filepath.Join(directory, "wintun-0.14.1-amd64.dll")
+	// The WireGuard Windows TUN backend resolves the module by its canonical
+	// basename after this preload. Keep that basename even though the payload is
+	// version-pinned and checksum-verified.
+	path := filepath.Join(directory, "wintun.dll")
 	if err := ensureEmbeddedWintun(path); err != nil {
 		return nil, err
 	}

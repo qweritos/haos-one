@@ -16,10 +16,11 @@ import (
 )
 
 type Tunnel struct {
-	Name       string
-	Helper     tunnelHelper
-	Config     *Config
-	EndpointIP net.IP
+	Name         string
+	Helper       tunnelHelper
+	Config       *Config
+	EndpointIP   net.IP
+	BootstrapIPs []net.IP
 }
 
 type tunnelHelper interface {
@@ -75,12 +76,6 @@ func StartTunnel(ctx context.Context, cfg *Config) (*Tunnel, error) {
 	peer.AllowedIPs = []net.IPNet{{IP: net.ParseIP(cfg.PeerAddress).To4(), Mask: net.CIDRMask(32, 32)}}
 	listenPort := cfg.ListenPort
 	if cfg.Role == "guest" {
-		for _, value := range cfg.LANCIDRs {
-			_, network, parseErr := net.ParseCIDR(value)
-			if parseErr == nil {
-				peer.AllowedIPs = append(peer.AllowedIPs, *network)
-			}
-		}
 		endpoint, endpointIP, resolveErr := ResolveEndpoint(cfg.HostEndpoint)
 		if resolveErr != nil {
 			return cleanupOnError(resolveErr)
@@ -89,6 +84,16 @@ func StartTunnel(ctx context.Context, cfg *Config) (*Tunnel, error) {
 			return cleanupOnError(fmt.Errorf("pin WireGuard endpoint route: %w", err))
 		}
 		tunnel.EndpointIP = endpointIP
+		resolverContents, _ := os.ReadFile("/etc/resolv.conf")
+		for _, resolverIP := range resolverIPv4s(string(resolverContents)) {
+			if resolverIP.IsLoopback() || resolverIP.Equal(endpointIP) {
+				continue
+			}
+			if err := pinEndpointRoute(ctx, resolverIP); err != nil {
+				return cleanupOnError(fmt.Errorf("pin bootstrap DNS route %s: %w", resolverIP, err))
+			}
+			tunnel.BootstrapIPs = append(tunnel.BootstrapIPs, resolverIP)
+		}
 		peer.Endpoint = endpoint
 		keepalive := 15 * time.Second
 		peer.PersistentKeepaliveInterval = &keepalive
@@ -211,7 +216,7 @@ func (t *Tunnel) UpdateAllowedIPs(cidrs []string) error {
 	for _, value := range cidrs {
 		_, network, parseErr := net.ParseCIDR(value)
 		if parseErr != nil || network.IP.To4() == nil {
-			return fmt.Errorf("invalid LAN CIDR %q", value)
+			return fmt.Errorf("invalid external route CIDR %q", value)
 		}
 		allowed = append(allowed, *network)
 	}
@@ -227,11 +232,31 @@ func (t *Tunnel) Close(ctx context.Context) error {
 	if t.EndpointIP != nil {
 		_ = unpinEndpointRoute(ctx, t.EndpointIP)
 	}
+	for _, ip := range t.BootstrapIPs {
+		_ = unpinEndpointRoute(ctx, ip)
+	}
 	err := removeTunnelInterface(ctx, t.Name)
 	if t.Helper != nil {
 		_ = t.Helper.Close()
 	}
 	return err
+}
+
+func resolverIPv4s(contents string) []net.IP {
+	var result []net.IP
+	seen := make(map[string]bool)
+	for _, line := range strings.Split(contents, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "nameserver" {
+			continue
+		}
+		ip := net.ParseIP(fields[1]).To4()
+		if ip != nil && !seen[ip.String()] {
+			seen[ip.String()] = true
+			result = append(result, ip)
+		}
+	}
+	return result
 }
 
 func findHelper() (string, error) {

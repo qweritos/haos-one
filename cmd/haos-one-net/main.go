@@ -76,13 +76,14 @@ func runInit(args []string) error {
 	listenPort := fs.Int("listen-port", netagent.DefaultListenPort, "host WireGuard UDP port")
 	tunnelCIDR := fs.String("tunnel-cidr", "auto", "IPv4 /30 or auto")
 	force := fs.Bool("force", false, "replace existing configuration and rotate keys")
+	dnsName := fs.String("dns-name", netagent.DefaultDNSName, "host-advertised .local DNS name")
 	var interfaces, cidrs stringList
 	fs.Var(&interfaces, "lan-interface", "LAN interface (repeatable)")
 	fs.Var(&cidrs, "lan-cidr", "LAN IPv4 CIDR (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	result, err := netagent.Init(netagent.InitOptions{Runtime: *runtimeName, OutputDir: *output, HostEndpoint: *endpoint, ListenPort: *listenPort, TunnelCIDR: *tunnelCIDR, Interfaces: interfaces, LANCIDRs: cidrs, Force: *force})
+	result, err := netagent.Init(netagent.InitOptions{Runtime: *runtimeName, OutputDir: *output, HostEndpoint: *endpoint, ListenPort: *listenPort, TunnelCIDR: *tunnelCIDR, Interfaces: interfaces, LANCIDRs: cidrs, Force: *force, DNSName: *dnsName})
 	if err != nil {
 		return err
 	}
@@ -92,17 +93,15 @@ func runInit(args []string) error {
 
 func runAgent(role string, args []string) error {
 	fs := flag.NewFlagSet(role+" run", flag.ContinueOnError)
-	defaultPath, _ := netagent.DefaultConfigDir()
-	if role == "guest" {
-		defaultPath = "/etc/haos-one/desktop-network.yaml"
-	} else {
-		defaultPath = filepath.Join(defaultPath, "host.yaml")
-	}
-	configPath := fs.String("config", defaultPath, "configuration file")
+	configPath := fs.String("config", "", "configuration file (or "+netagent.ConfigPathEnv+")")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	cfg, err := netagent.LoadConfig(*configPath)
+	resolvedPath, err := netagent.ResolveConfigPath(*configPath, role)
+	if err != nil {
+		return err
+	}
+	cfg, err := netagent.LoadConfig(resolvedPath)
 	if err != nil {
 		return err
 	}
@@ -119,13 +118,16 @@ func runAgent(role string, args []string) error {
 
 func runDoctor(args []string) error {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
-	defaultDir, _ := netagent.DefaultConfigDir()
-	configPath := fs.String("config", filepath.Join(defaultDir, "host.yaml"), "host or guest configuration")
+	configPath := fs.String("config", "", "host configuration (or "+netagent.ConfigPathEnv+")")
 	container := fs.String("container", "", "HAOS One container name")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	cfg, err := netagent.LoadConfig(*configPath)
+	resolvedPath, err := netagent.ResolveConfigPath(*configPath, "host")
+	if err != nil {
+		return err
+	}
+	cfg, err := netagent.LoadConfig(resolvedPath)
 	if err != nil {
 		return err
 	}
@@ -146,18 +148,21 @@ func runDoctor(args []string) error {
 
 func runCleanup(args []string) error {
 	fs := flag.NewFlagSet("cleanup", flag.ContinueOnError)
-	defaultDir, _ := netagent.DefaultConfigDir()
-	configPath := fs.String("config", filepath.Join(defaultDir, "host.yaml"), "host configuration")
+	configPath := fs.String("config", "", "host configuration (or "+netagent.ConfigPathEnv+")")
 	purge := fs.Bool("purge", false, "also remove generated host and guest configuration")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	cfg, err := netagent.LoadConfig(*configPath)
+	resolvedPath, err := netagent.ResolveConfigPath(*configPath, "host")
 	if err != nil {
 		return err
 	}
-	guestPath := filepath.Join(filepath.Dir(*configPath), "guest.yaml")
-	return netagent.Cleanup(context.Background(), cfg, *purge, *configPath, guestPath)
+	cfg, err := netagent.LoadConfig(resolvedPath)
+	if err != nil {
+		return err
+	}
+	guestPath := filepath.Join(filepath.Dir(resolvedPath), "guest.yaml")
+	return netagent.Cleanup(context.Background(), cfg, *purge, resolvedPath, guestPath)
 }
 
 func usage() {

@@ -16,13 +16,17 @@ import (
 )
 
 const (
-	ConfigVersion       = 1
-	DefaultListenPort   = 51821
-	DefaultRelayPort    = 47821
-	DefaultMTU          = 1280
-	DefaultHostEndpoint = "host.docker.internal"
-	DefaultTunnelCIDR   = "10.203.0.0/30"
-	DefaultConfigName   = "desktop-network.yaml"
+	ConfigVersion        = 1
+	DefaultListenPort    = 51821
+	DefaultRelayPort     = 47821
+	DefaultMTU           = 1280
+	DefaultHostEndpoint  = "host.docker.internal"
+	DefaultTunnelCIDR    = "10.203.0.0/30"
+	DefaultConfigName    = "desktop-network.yaml"
+	DefaultDNSName       = "homeassistant.local"
+	DefaultHTTPPort      = 8123
+	DefaultGuestHTTPPort = 80
+	ConfigPathEnv        = "HAOS_ONE_NET_CONFIG"
 )
 
 type Config struct {
@@ -43,6 +47,9 @@ type Config struct {
 	Interfaces    []string `yaml:"interfaces,omitempty"`
 	LANCIDRs      []string `yaml:"lan_cidrs,omitempty"`
 	StateFile     string   `yaml:"state_file,omitempty"`
+	DNSName       string   `yaml:"dns_name,omitempty"`
+	HTTPPort      int      `yaml:"http_port,omitempty"`
+	GuestHTTPPort int      `yaml:"guest_http_port,omitempty"`
 }
 
 type State struct {
@@ -64,6 +71,8 @@ type State struct {
 	MDNSRelayed         uint64    `yaml:"mdns_relayed,omitempty"`
 	SSDPRelayed         uint64    `yaml:"ssdp_relayed,omitempty"`
 	DuplicatesDropped   uint64    `yaml:"duplicates_dropped,omitempty"`
+	DNSName             string    `yaml:"dns_name,omitempty"`
+	HTTPListen          string    `yaml:"http_listen,omitempty"`
 }
 
 func DefaultConfigDir() (string, error) {
@@ -72,6 +81,29 @@ func DefaultConfigDir() (string, error) {
 		return "", err
 	}
 	return filepath.Join(dir, "haos-one", "net"), nil
+}
+
+// ResolveConfigPath applies command-line, environment, and platform defaults in
+// that order. Keeping this in the package prevents individual commands from
+// drifting in how they locate sensitive key material.
+func ResolveConfigPath(explicit, role string) (string, error) {
+	if path := strings.TrimSpace(explicit); path != "" {
+		return filepath.Clean(path), nil
+	}
+	if path := strings.TrimSpace(os.Getenv(ConfigPathEnv)); path != "" {
+		return filepath.Clean(path), nil
+	}
+	if role == "guest" {
+		return "/etc/haos-one/desktop-network.yaml", nil
+	}
+	if role != "host" {
+		return "", fmt.Errorf("unknown configuration role %q", role)
+	}
+	dir, err := DefaultConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "host.yaml"), nil
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -193,6 +225,17 @@ func (c *Config) Validate() error {
 	if c.Role == "host" && (len(c.Interfaces) == 0 || c.StateFile == "") {
 		return errors.New("host interfaces and state_file are required")
 	}
+	if c.Role == "host" {
+		if _, err := NormalizeDNSName(c.EffectiveDNSName()); err != nil {
+			return err
+		}
+		if port := c.EffectiveHTTPPort(); port < 1 || port > 65535 {
+			return errors.New("http_port must be between 1 and 65535")
+		}
+		if port := c.EffectiveGuestHTTPPort(); port < 1 || port > 65535 {
+			return errors.New("guest_http_port must be between 1 and 65535")
+		}
+	}
 	if len(c.LANCIDRs) == 0 {
 		return errors.New("at least one lan_cidr is required")
 	}
@@ -203,6 +246,45 @@ func (c *Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+func (c *Config) EffectiveDNSName() string {
+	if strings.TrimSpace(c.DNSName) == "" {
+		return DefaultDNSName
+	}
+	return strings.TrimSpace(c.DNSName)
+}
+
+func (c *Config) EffectiveHTTPPort() int {
+	if c.HTTPPort == 0 {
+		return DefaultHTTPPort
+	}
+	return c.HTTPPort
+}
+
+func (c *Config) EffectiveGuestHTTPPort() int {
+	if c.GuestHTTPPort == 0 {
+		return DefaultGuestHTTPPort
+	}
+	return c.GuestHTTPPort
+}
+
+func NormalizeDNSName(value string) (string, error) {
+	name := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(value), "."))
+	if len(name) == 0 || len(name) > 253 || !strings.HasSuffix(name, ".local") {
+		return "", errors.New("dns_name must be a valid name below .local")
+	}
+	for _, label := range strings.Split(name, ".") {
+		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return "", errors.New("dns_name contains an invalid DNS label")
+		}
+		for _, character := range label {
+			if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '-' {
+				return "", errors.New("dns_name may contain only letters, digits, hyphens, and dots")
+			}
+		}
+	}
+	return name, nil
 }
 
 func DefaultStateFile(configDir string) string {

@@ -7,7 +7,8 @@ ConditionPathExists=/etc/haos-one/desktop-network.yaml
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/haos-one-net guest run --config /etc/haos-one/desktop-network.yaml
+Environment=HAOS_ONE_NET_CONFIG=/etc/haos-one/desktop-network.yaml
+ExecStart=/usr/local/bin/haos-one-net guest run
 Restart=always
 RestartSec=3s
 TimeoutStopSec=20s

@@ -18,8 +18,46 @@ func TestDockerSnippetsActivateDesktopNetworkingFromMount(t *testing.T) {
 	if !strings.Contains(snippets, "/tmp/guest.yaml:/etc/haos-one/desktop-network.yaml:ro") {
 		t.Fatal("generated snippets do not contain the read-only guest configuration mount")
 	}
-	if !strings.Contains(snippets, "-p 8123:8123") || !strings.Contains(snippets, `- "8123:8123"`) {
-		t.Fatal("generated snippets do not publish the Home Assistant port")
+	if strings.Contains(snippets, "--network host") || strings.Contains(snippets, "-p 8123:8123") || strings.Contains(snippets, `"8123:8123"`) || strings.Contains(snippets, "ports:") {
+		t.Fatal("generated snippets must leave LAN and HTTP ingress to the host helper")
+	}
+}
+
+func TestResolveConfigPathPrecedence(t *testing.T) {
+	t.Setenv(ConfigPathEnv, "/tmp/from-env.yaml")
+	path, err := ResolveConfigPath("", "host")
+	if err != nil || path != "/tmp/from-env.yaml" {
+		t.Fatalf("environment path: %q %v", path, err)
+	}
+	path, err = ResolveConfigPath("/tmp/from-flag.yaml", "host")
+	if err != nil || path != "/tmp/from-flag.yaml" {
+		t.Fatalf("explicit path: %q %v", path, err)
+	}
+}
+
+func TestNormalizeDNSName(t *testing.T) {
+	name, err := NormalizeDNSName("HomeAssistant.Local.")
+	if err != nil || name != DefaultDNSName {
+		t.Fatalf("normalized name: %q %v", name, err)
+	}
+	for _, value := range []string{"homeassistant", "-bad.local", "bad_name.local"} {
+		if _, err := NormalizeDNSName(value); err == nil {
+			t.Fatalf("expected invalid DNS name %q", value)
+		}
+	}
+}
+
+func TestDefaultExternalRoutesUseSplitDefault(t *testing.T) {
+	routes := DefaultExternalRoutes()
+	if len(routes) != 2 || routes[0] != "0.0.0.0/1" || routes[1] != "128.0.0.0/1" {
+		t.Fatalf("unexpected external routes: %v", routes)
+	}
+}
+
+func TestResolverIPv4s(t *testing.T) {
+	got := resolverIPv4s("nameserver 192.168.65.7\nnameserver 127.0.0.11\nnameserver 192.168.65.7\nnameserver ::1\n")
+	if len(got) != 2 || got[0].String() != "192.168.65.7" || got[1].String() != "127.0.0.11" {
+		t.Fatalf("unexpected resolver addresses: %v", got)
 	}
 }
 

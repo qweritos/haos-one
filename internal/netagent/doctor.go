@@ -22,11 +22,21 @@ type Check struct {
 func Doctor(ctx context.Context, cfg *Config, container string) []Check {
 	checks := []Check{{Name: "configuration", OK: true, Detail: fmt.Sprintf("%s/%s", cfg.Runtime, cfg.Role)}}
 	if cfg.Role == "host" {
+		checks = append(checks,
+			Check{Name: "external routing mode", OK: true, Detail: "WireGuard split-default with endpoint escape route"},
+			Check{Name: "advertised DNS name", OK: true, Detail: cfg.EffectiveDNSName()},
+		)
 		for _, name := range cfg.Interfaces {
 			_, err := net.InterfaceByName(name)
 			checks = append(checks, Check{Name: "LAN interface " + name, OK: err == nil, Detail: errorDetail(err, "available")})
 		}
 		checks = append(checks, Check{Name: "administrator", OK: isAdministrator(), Detail: "required by tunnel and NAT setup"})
+		address := net.JoinHostPort("127.0.0.1", fmt.Sprint(cfg.EffectiveHTTPPort()))
+		connection, dialErr := net.DialTimeout("tcp4", address, time.Second)
+		if connection != nil {
+			_ = connection.Close()
+		}
+		checks = append(checks, Check{Name: "Home Assistant HTTP ingress", OK: dialErr == nil, Detail: errorDetail(dialErr, address)})
 	}
 	if cfg.Role == "guest" {
 		endpoint, ip, err := ResolveEndpoint(cfg.HostEndpoint)
@@ -37,7 +47,7 @@ func Doctor(ctx context.Context, cfg *Config, container string) []Check {
 		checks = append(checks, Check{Name: "host endpoint", OK: err == nil, Detail: detail})
 	}
 	_, helperErr := findHelper()
-	if runtime.GOOS == "linux" && commandExists("ip") {
+	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || (runtime.GOOS == "linux" && commandExists("ip")) {
 		// The Linux kernel path may work without the helper.
 		helperErr = nil
 	}
@@ -71,7 +81,8 @@ func Doctor(ctx context.Context, cfg *Config, container string) []Check {
 			running := inspectErr == nil && strings.TrimSpace(string(out)) == "true"
 			checks = append(checks, Check{Name: "container " + container, OK: running, Detail: errorDetail(inspectErr, strings.TrimSpace(string(out)))})
 			if running {
-				resolve := exec.CommandContext(ctx, "docker", "exec", container, "getent", "hosts", DefaultHostEndpoint)
+				probe := "getent hosts " + DefaultHostEndpoint + " 2>/dev/null || nslookup " + DefaultHostEndpoint + " 2>/dev/null || ping -c 1 " + DefaultHostEndpoint
+				resolve := exec.CommandContext(ctx, "docker", "exec", container, "sh", "-c", probe)
 				out, resolveErr := resolve.CombinedOutput()
 				checks = append(checks, Check{Name: "container host endpoint DNS", OK: resolveErr == nil, Detail: strings.TrimSpace(string(out))})
 			}
@@ -97,13 +108,15 @@ func Cleanup(ctx context.Context, cfg *Config, purge bool, configPaths ...string
 	if cfg.StateFile != "" {
 		state, err := LoadState(cfg.StateFile)
 		if err == nil {
-			if err := cleanupHost(ctx, state); err != nil {
-				return err
-			}
+			// Tear down the tunnel before removing host NAT. WinNAT can block
+			// while an active Wintun interface still owns the managed prefix.
+			_ = stopOwnedHelper(ctx, state)
 			if state.Interface != "" {
 				_ = removeTunnelInterface(ctx, state.Interface)
 			}
-			_ = stopOwnedHelper(ctx, state)
+			if err := cleanupHost(ctx, state); err != nil {
+				return err
+			}
 			_ = os.Remove(cfg.StateFile)
 		} else if !os.IsNotExist(err) {
 			return err

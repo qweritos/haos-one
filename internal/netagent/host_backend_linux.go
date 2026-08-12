@@ -4,12 +4,12 @@ package netagent
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
 	"os/exec"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func prepareHost(ctx context.Context, cfg *Config, tunnel *Tunnel) (*State, error) {
@@ -21,7 +21,7 @@ func cleanupHost(ctx context.Context, state *State) error { return nil }
 func addGuestRoutes(ctx context.Context, tunnel string, cidrs []string) error {
 	added := make([]string, 0, len(cidrs))
 	for _, cidr := range cidrs {
-		if err := runCommand(ctx, "ip", "route", "add", cidr, "dev", tunnel); err != nil {
+		if err := runCommand(ctx, "ip", "route", "replace", cidr, "dev", tunnel); err != nil {
 			_ = removeGuestRoutes(ctx, tunnel, added)
 			return err
 		}
@@ -40,65 +40,66 @@ func removeGuestRoutes(ctx context.Context, tunnel string, cidrs []string) error
 	return first
 }
 
-func injectUDP(source net.IP, sourcePort int, destination net.IP, destinationPort int, ttl int, payload []byte) error {
+func injectUDP(source net.IP, sourcePort int, destination net.IP, destinationPort int, ttl int, payload []byte, interfaceName string) error {
 	src := source.To4()
 	dst := destination.To4()
 	if src == nil || dst == nil {
-		return fmt.Errorf("raw injection requires IPv4 addresses")
+		return fmt.Errorf("UDP injection requires IPv4 addresses")
 	}
-	udpLen := 8 + len(payload)
-	totalLen := 20 + udpLen
-	packet := make([]byte, totalLen)
-	packet[0] = 0x45
-	packet[1] = 0
-	binary.BigEndian.PutUint16(packet[2:4], uint16(totalLen))
-	binary.BigEndian.PutUint16(packet[4:6], uint16(NewMessageID()))
-	packet[6] = 0x40
-	packet[8] = byte(ttl)
-	if packet[8] == 0 {
-		packet[8] = 64
-	}
-	packet[9] = syscall.IPPROTO_UDP
-	copy(packet[12:16], src)
-	copy(packet[16:20], dst)
-	binary.BigEndian.PutUint16(packet[10:12], checksum(packet[:20]))
-	binary.BigEndian.PutUint16(packet[20:22], uint16(sourcePort))
-	binary.BigEndian.PutUint16(packet[22:24], uint16(destinationPort))
-	binary.BigEndian.PutUint16(packet[24:26], uint16(udpLen))
-	copy(packet[28:], payload)
-	pseudo := make([]byte, 12+udpLen)
-	copy(pseudo[0:4], src)
-	copy(pseudo[4:8], dst)
-	pseudo[9] = syscall.IPPROTO_UDP
-	binary.BigEndian.PutUint16(pseudo[10:12], uint16(udpLen))
-	copy(pseudo[12:], packet[20:])
-	binary.BigEndian.PutUint16(packet[26:28], checksum(pseudo))
-	fd, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_RAW)
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, unix.IPPROTO_UDP)
 	if err != nil {
 		return err
 	}
-	defer syscall.Close(fd)
-	if err := syscall.SetsockoptInt(fd, syscall.IPPROTO_IP, syscall.IP_HDRINCL, 1); err != nil {
+	defer unix.Close(fd)
+	for _, option := range []int{unix.SO_REUSEADDR, unix.SO_REUSEPORT} {
+		if err := unix.SetsockoptInt(fd, unix.SOL_SOCKET, option, 1); err != nil {
+			return err
+		}
+	}
+	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_FREEBIND, 1); err != nil {
 		return err
 	}
-	addr := &syscall.SockaddrInet4{}
+	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_TRANSPARENT, 1); err != nil {
+		return err
+	}
+	if err := unix.SetsockoptString(fd, unix.SOL_SOCKET, unix.SO_BINDTODEVICE, interfaceName); err != nil {
+		return err
+	}
+	sourceAddress := &unix.SockaddrInet4{Port: sourcePort}
+	copy(sourceAddress.Addr[:], src)
+	if err := unix.Bind(fd, sourceAddress); err != nil {
+		return err
+	}
+	if ttl <= 0 || ttl > 255 {
+		ttl = 64
+	}
+	if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_TTL, ttl); err != nil {
+		return err
+	}
+	if dst.IsMulticast() {
+		iface, ifaceErr := net.InterfaceByName(interfaceName)
+		if ifaceErr != nil {
+			return ifaceErr
+		}
+		localIP, addressErr := interfaceIPv4(iface)
+		if addressErr != nil {
+			return addressErr
+		}
+		var multicastInterface [4]byte
+		copy(multicastInterface[:], localIP.To4())
+		if err := unix.SetsockoptInet4Addr(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_IF, multicastInterface); err != nil {
+			return err
+		}
+		if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_TTL, ttl); err != nil {
+			return err
+		}
+		if err := unix.SetsockoptInt(fd, unix.IPPROTO_IP, unix.IP_MULTICAST_LOOP, 1); err != nil {
+			return err
+		}
+	}
+	addr := &unix.SockaddrInet4{Port: destinationPort}
 	copy(addr.Addr[:], dst)
-	return syscall.Sendto(fd, packet, 0, addr)
-}
-
-func checksum(data []byte) uint16 {
-	var sum uint32
-	for len(data) >= 2 {
-		sum += uint32(binary.BigEndian.Uint16(data[:2]))
-		data = data[2:]
-	}
-	if len(data) == 1 {
-		sum += uint32(data[0]) << 8
-	}
-	for sum>>16 != 0 {
-		sum = (sum & 0xffff) + (sum >> 16)
-	}
-	return ^uint16(sum)
+	return unix.Sendto(fd, payload, 0, addr)
 }
 
 func isAdministrator() bool { return os.Geteuid() == 0 }

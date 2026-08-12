@@ -29,6 +29,7 @@ type InitOptions struct {
 	Interfaces   []string
 	LANCIDRs     []string
 	Force        bool
+	DNSName      string
 }
 
 type InitResult struct {
@@ -68,6 +69,13 @@ func Init(opts InitOptions) (*InitResult, error) {
 	}
 	if opts.ListenPort == 0 {
 		opts.ListenPort = DefaultListenPort
+	}
+	if opts.DNSName == "" {
+		opts.DNSName = DefaultDNSName
+	}
+	opts.DNSName, err = NormalizeDNSName(opts.DNSName)
+	if err != nil {
+		return nil, err
 	}
 	autoInterface := len(opts.Interfaces) == 0
 	autoCIDRs := len(opts.LANCIDRs) == 0
@@ -132,6 +140,7 @@ func Init(opts InitOptions) (*InitResult, error) {
 		ListenPort: opts.ListenPort, RelayPort: DefaultRelayPort, MTU: DefaultMTU,
 		AutoInterface: autoInterface, AutoCIDRs: autoCIDRs,
 		Interfaces: opts.Interfaces, LANCIDRs: opts.LANCIDRs, StateFile: stateFile,
+		DNSName: opts.DNSName, HTTPPort: DefaultHTTPPort, GuestHTTPPort: DefaultGuestHTTPPort,
 	}
 	guest := &Config{
 		Version: ConfigVersion, Role: "guest", Runtime: runtimeName,
@@ -140,6 +149,7 @@ func Init(opts InitOptions) (*InitResult, error) {
 		RelayPort: DefaultRelayPort, MTU: DefaultMTU,
 		HostEndpoint: net.JoinHostPort(opts.HostEndpoint, strconv.Itoa(opts.ListenPort)),
 		LANCIDRs:     opts.LANCIDRs,
+		HTTPPort:     DefaultHTTPPort,
 	}
 	if err := SaveConfig(hostPath, host); err != nil {
 		return nil, err
@@ -436,14 +446,12 @@ func DockerSnippets(result *InitResult) string {
   %s
 
 Docker Run:
-  docker run --name haos -ti --privileged -p 8123:8123 %s
+  docker run --name haos -ti --privileged %s
     -v %s %s
     -v haos-data:/mnt/data qweritos/haos-one
 
 Compose service fields:
   privileged: true
-  ports:
-    - "8123:8123"
   volumes:
     - %s
     - haos-data:/mnt/data

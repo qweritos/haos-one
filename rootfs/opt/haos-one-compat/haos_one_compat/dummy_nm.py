@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import logging
+import os
+import time
 from ipaddress import IPv6Address
 from typing import Any
 from uuid import uuid4
@@ -15,6 +18,9 @@ from dbus_fast.aio.message_bus import MessageBus
 from dbus_fast.service import PropertyAccess, ServiceInterface, dbus_property, method, signal
 
 _LOGGER = logging.getLogger(__name__)
+
+_NETWORK_PROJECTION_PATH = "/host-run/haos-one-net/network.json"
+_NETWORK_PROJECTION_MAX_AGE = 15
 
 from .constants import (
     IP4_PATH,
@@ -39,13 +45,27 @@ from .types import (
 class DummyRegistry:
     """Registry for exporting interfaces and managing state."""
 
-    def __init__(self, bus: MessageBus, state: DummyState) -> None:
+    def __init__(
+        self,
+        bus: MessageBus,
+        state: DummyState,
+        projection_path: str = _NETWORK_PROJECTION_PATH,
+    ) -> None:
         self.bus = bus
-        self.state = state
+        self._state = state
+        self._projection_path = projection_path
         self._settings_counter = 10
         self._active_counter = 10
         self._settings_services: dict[str, SettingsConnection] = {}
         self._active_services: dict[str, ActiveConnection] = {}
+
+    @property
+    def state(self) -> DummyState:
+        """Return state projected from the active HAOS One tunnel, if any."""
+        # Revalidate freshness on every D-Bus read so an agent crash cannot
+        # leave a stale tunnel projected as the primary connection.
+        self._state = build_state(load_network_projection(self._projection_path))
+        return self._state
 
     def export(self, service: ServiceInterface, object_path: str) -> None:
         """Export a service interface on the bus."""
@@ -364,13 +384,38 @@ class DnsManager(ServiceInterface):
         return self._registry.state.dns_configuration
 
 
-def _initial_settings_eth() -> dict[str, dict[str, Variant]]:
+def load_network_projection(path: str = _NETWORK_PROJECTION_PATH) -> dict[str, Any] | None:
+    """Load a fresh, active haoswg0 projection produced by the guest agent."""
+    try:
+        with open(path, encoding="utf-8") as projection_file:
+            projection = json.load(projection_file)
+        if projection.get("version") != 1 or projection.get("interface") != "haoswg0":
+            return None
+        if time.time() - int(projection["updated_unix"]) > _NETWORK_PROJECTION_MAX_AGE:
+            return None
+        address = str(projection["address"])
+        prefix = int(projection["prefix"])
+        gateway = str(projection["gateway"])
+        if not 0 <= prefix <= 32:
+            return None
+        return {
+            "interface": "haoswg0",
+            "address": address,
+            "prefix": prefix,
+            "gateway": gateway,
+            "nameservers": [str(value) for value in projection.get("nameservers", [])],
+        }
+    except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
+        return None
+
+
+def _initial_settings_eth(profile: dict[str, Any]) -> dict[str, dict[str, Variant]]:
     return {
         "connection": {
-            "id": v("s", "Supervisor eth0"),
+            "id": v("s", f"Supervisor {profile['interface']}"),
             "uuid": v("s", "00000000-0000-0000-0000-000000000001"),
             "type": v("s", "802-3-ethernet"),
-            "interface-name": v("s", "eth0"),
+            "interface-name": v("s", profile["interface"]),
             "llmnr": v("i", 2),
             "mdns": v("i", 2),
         },
@@ -378,9 +423,9 @@ def _initial_settings_eth() -> dict[str, dict[str, Variant]]:
             "method": v("s", "auto"),
             "address-data": v(
                 "aa{sv}",
-                [{"address": v("s", "192.168.1.100"), "prefix": v("u", 24)}],
+                [{"address": v("s", profile["address"]), "prefix": v("u", profile["prefix"])}],
             ),
-            "gateway": v("s", "192.168.1.1"),
+            "gateway": v("s", profile["gateway"]),
         },
         "ipv6": {
             "method": v("s", "auto"),
@@ -394,17 +439,27 @@ def _initial_settings_eth() -> dict[str, dict[str, Variant]]:
 
 
 
-def build_state() -> DummyState:
+def build_state(projection: dict[str, Any] | None = None) -> DummyState:
     """Build an initial dummy state."""
+    profile = projection or {
+        "interface": "eth0",
+        "address": "192.168.1.100",
+        "prefix": 24,
+        "gateway": "192.168.1.1",
+        "nameservers": ["192.168.1.1"],
+    }
     devices = {
         "/org/freedesktop/NetworkManager/Devices/1": DeviceState(
             object_path="/org/freedesktop/NetworkManager/Devices/1",
-            interface="eth0",
+            interface=profile["interface"],
             device_type=1,
+            # Supervisor expects the compatibility device to be Ethernet. The
+            # interface identity and IPv4 data may describe haoswg0, but its
+            # NetworkManager surface deliberately remains fake Ethernet.
             driver="dummy-eth",
             managed=True,
             hw_address="AA:BB:CC:DD:EE:01",
-            path="dummy-eth0",
+            path=f"dummy-{profile['interface']}",
             active_connection="/org/freedesktop/NetworkManager/ActiveConnection/1",
         ),
     }
@@ -413,7 +468,7 @@ def build_state() -> DummyState:
         "/org/freedesktop/NetworkManager/ActiveConnection/1": ActiveConnectionState(
             object_path="/org/freedesktop/NetworkManager/ActiveConnection/1",
             connection="/org/freedesktop/NetworkManager/Settings/1",
-            connection_id="Supervisor eth0",
+            connection_id=f"Supervisor {profile['interface']}",
             connection_uuid="00000000-0000-0000-0000-000000000001",
             connection_type="802-3-ethernet",
             state=2,
@@ -426,16 +481,16 @@ def build_state() -> DummyState:
     settings = {
         "/org/freedesktop/NetworkManager/Settings/1": SettingsState(
             object_path="/org/freedesktop/NetworkManager/Settings/1",
-            settings=_initial_settings_eth(),
+            settings=_initial_settings_eth(profile),
         ),
     }
 
     ip4_configs = {
         IP4_PATH: IP4ConfigState(
             object_path=IP4_PATH,
-            address_data=[{"address": v("s", "192.168.1.100"), "prefix": v("u", 24)}],
-            gateway="192.168.1.1",
-            nameserver_data=[{"address": v("s", "192.168.1.1")}],
+            address_data=[{"address": v("s", profile["address"]), "prefix": v("u", profile["prefix"])}],
+            gateway=profile["gateway"],
+            nameserver_data=[{"address": v("s", address)} for address in profile["nameservers"]],
         )
     }
 
@@ -452,9 +507,9 @@ def build_state() -> DummyState:
 
     dns_configuration = [
         {
-            "nameservers": v("as", ["192.168.1.1"]),
+            "nameservers": v("as", profile["nameservers"]),
             "domains": v("as", ["local"]),
-            "interface": v("s", "eth0"),
+            "interface": v("s", profile["interface"]),
             "priority": v("i", 100),
             "vpn": v("b", False),
         }

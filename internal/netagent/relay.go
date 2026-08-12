@@ -39,7 +39,9 @@ type Relay struct {
 	routes     []string
 	routesUp   bool
 	lastBeat   time.Time
+	hostLost   bool
 	state      *State
+	advertiser *MDNSAdvertiser
 }
 
 type pendingSearch struct {
@@ -146,6 +148,12 @@ func RunHost(ctx context.Context, cfg *Config) error {
 			return err
 		}
 		relay.state = state
+		addressSnapshot, err := interfaceAddressSnapshot(cfg.Interfaces)
+		if err != nil {
+			_ = relay.Close()
+			_ = cleanupHost(context.Background(), state)
+			return err
+		}
 		innerCtx, cancel := context.WithCancel(ctx)
 		result := make(chan error, 1)
 		go func() { result <- relay.runHost(innerCtx) }()
@@ -177,7 +185,12 @@ func RunHost(ctx context.Context, cfg *Config) error {
 					log.Printf("refresh LAN state: %v", checkErr)
 					continue
 				}
-				if changed {
+				newAddressSnapshot, addressErr := interfaceAddressSnapshot(interfaces)
+				if addressErr != nil {
+					log.Printf("refresh LAN addresses: %v", addressErr)
+					continue
+				}
+				if changed || !equalStrings(addressSnapshot, newAddressSnapshot) {
 					log.Printf("LAN changed: interfaces=%v cidrs=%v", interfaces, cidrs)
 					cfg.Interfaces, cfg.LANCIDRs = interfaces, cidrs
 					restart = true
@@ -193,6 +206,27 @@ func RunHost(ctx context.Context, cfg *Config) error {
 		}
 		_ = os.Remove(cfg.StateFile)
 	}
+}
+
+func interfaceAddressSnapshot(names []string) ([]string, error) {
+	var result []string
+	for _, name := range names {
+		iface, err := net.InterfaceByName(name)
+		if err != nil {
+			return nil, err
+		}
+		addresses, err := iface.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, address := range addresses {
+			ip, _, parseErr := net.ParseCIDR(address.String())
+			if parseErr == nil && ip.To4() != nil && !ip.IsLoopback() {
+				result = append(result, name+"="+ip.String())
+			}
+		}
+	}
+	return uniqueStrings(result), nil
 }
 
 func refreshedLANState(cfg *Config) ([]string, []string, bool, error) {
@@ -221,11 +255,25 @@ func refreshedLANState(cfg *Config) ([]string, []string, bool, error) {
 }
 
 func (r *Relay) runHost(ctx context.Context) error {
+	httpProxy, err := StartHTTPProxy(ctx, r.cfg)
+	if err != nil {
+		return err
+	}
+	defer httpProxy.Close()
+	if r.state != nil {
+		r.state.HTTPListen = httpProxy.Address()
+		r.state.DNSName = r.cfg.EffectiveDNSName()
+		r.writeState()
+	}
 	mdnsSockets, err := openDiscoverySockets(r.cfg.Interfaces, MDNSAddress)
 	if err != nil {
 		return fmt.Errorf("open mDNS sockets: %w", err)
 	}
 	defer closeDiscoverySockets(mdnsSockets)
+	r.advertiser, err = NewMDNSAdvertiser(r.cfg)
+	if err != nil {
+		return fmt.Errorf("configure mDNS advertisement: %w", err)
+	}
 	ssdpSockets, err := openDiscoverySockets(r.cfg.Interfaces, SSDPAddress)
 	if err != nil {
 		return fmt.Errorf("open SSDP sockets: %w", err)
@@ -235,6 +283,7 @@ func (r *Relay) runHost(ctx context.Context) error {
 	for _, socket := range mdnsSockets {
 		go r.readHostMDNS(ctx, socket)
 	}
+	go r.advertiser.Run(ctx, mdnsSockets)
 	for _, socket := range ssdpSockets {
 		go r.readHostSSDP(ctx, socket)
 	}
@@ -326,7 +375,13 @@ func (r *Relay) readHostMDNS(ctx context.Context, socket discoverySocket) {
 			continue
 		}
 		payload := append([]byte(nil), buffer[:n]...)
-		if !IsMDNSResponse(payload) || r.dedupe.Seen(KindMDNSResponse, payload) {
+		if IsMDNSQuery(payload) {
+			if r.advertiser != nil && r.advertiser.MatchesQuery(payload) {
+				_ = r.advertiser.Send(socket, mdnsHostTTL)
+			}
+			continue
+		}
+		if !IsMDNSResponse(payload) || (r.advertiser != nil && r.advertiser.IsOwnAnnouncement(payload, socket.iface)) || r.dedupe.Seen(KindMDNSResponse, payload) {
 			continue
 		}
 		udpSource, ok := source.(*net.UDPAddr)
@@ -418,6 +473,8 @@ func RunGuest(ctx context.Context, cfg *Config) error {
 	if !isAdministrator() {
 		return errors.New("guest run requires root")
 	}
+	removeGuestNetworkProjection()
+	defer removeGuestNetworkProjection()
 	tunnel, err := StartTunnel(ctx, cfg)
 	if err != nil {
 		return err
@@ -466,9 +523,10 @@ func (r *Relay) runGuest(ctx context.Context) error {
 			if json.Unmarshal(message.Payload, &beat) != nil {
 				return
 			}
-			r.activateRoutes(ctx, uniqueStrings(beat.LANCIDRs))
+			r.activateRoutes(ctx, DefaultExternalRoutes())
 		case KindMDNSResponse, KindSSDPResponse, KindSSDPNotify:
 			port := int(message.TargetPort)
+			destination := localIP
 			if port == 0 {
 				if message.Kind == KindMDNSResponse {
 					port = 5353
@@ -476,7 +534,17 @@ func (r *Relay) runGuest(ctx context.Context) error {
 					port = 1900
 				}
 			}
-			if err := injectUDP(message.SourceIP, int(message.SourcePort), localIP, port, int(message.TTL), message.Payload); err != nil {
+			// Multicast discovery listeners share their well-known port. Injecting
+			// these packets as unicast can select only one SO_REUSEADDR socket and
+			// starve Home Assistant when the relay socket wins. Preserve the LAN
+			// source, but deliver multicast responses to the original group so all
+			// listeners in the outer namespace receive them.
+			if message.Kind == KindMDNSResponse {
+				destination = MDNSAddress.IP
+			} else if message.Kind == KindSSDPNotify {
+				destination = SSDPAddress.IP
+			}
+			if err := injectUDP(message.SourceIP, int(message.SourcePort), destination, port, int(message.TTL), message.Payload, ifaceName); err != nil {
 				log.Printf("raw discovery injection failed, using tunnel source: %v", err)
 				_ = fallbackInject(r.cfg.Address, int(message.SourcePort), localIP, port, message.Payload)
 			}
@@ -537,6 +605,7 @@ func (r *Relay) activateRoutes(ctx context.Context, cidrs []string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.lastBeat = time.Now()
+	r.hostLost = false
 	if equalStrings(r.routes, cidrs) && r.routesUp {
 		return
 	}
@@ -545,43 +614,49 @@ func (r *Relay) activateRoutes(ctx context.Context, cidrs []string) {
 		r.routesUp = false
 	}
 	if err := r.tunnel.UpdateAllowedIPs(cidrs); err != nil {
-		log.Printf("update WireGuard LAN prefixes: %v", err)
+		log.Printf("update WireGuard external routes: %v", err)
 		return
 	}
 	if err := addGuestRoutes(ctx, r.tunnel.Name, cidrs); err != nil {
-		log.Printf("activate LAN routes: %v", err)
+		log.Printf("activate external routes: %v", err)
 		return
 	}
 	r.routes = append([]string(nil), cidrs...)
 	r.routesUp = true
-	log.Printf("activated LAN routes: %v", cidrs)
+	if err := writeGuestNetworkProjection(guestNetworkProjectionPath, r.tunnel, time.Now()); err != nil {
+		log.Printf("publish active guest network: %v", err)
+	}
+	log.Printf("activated WireGuard as the external IPv4 path: %v", cidrs)
 }
 
 func (r *Relay) guestLiveness(ctx context.Context) {
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-	defer func() {
-		r.mu.Lock()
-		defer r.mu.Unlock()
-		if r.routesUp {
-			_ = removeGuestRoutes(context.Background(), r.tunnel.Name, r.routes)
-			r.routesUp = false
-		}
-	}()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
 			r.mu.Lock()
-			if r.routesUp && time.Since(r.lastBeat) > 15*time.Second {
-				_ = removeGuestRoutes(ctx, r.tunnel.Name, r.routes)
-				r.routesUp = false
-				log.Printf("host heartbeat expired; restored ordinary container routing")
+			if r.routesUp {
+				if err := writeGuestNetworkProjection(guestNetworkProjectionPath, r.tunnel, time.Now()); err != nil {
+					log.Printf("refresh active guest network: %v", err)
+				}
+			}
+			if r.routesUp && !r.hostLost && time.Since(r.lastBeat) > 15*time.Second {
+				r.hostLost = true
+				log.Printf("host heartbeat expired; retaining WireGuard default route for endpoint recovery")
 			}
 			r.mu.Unlock()
 		}
 	}
+}
+
+// DefaultExternalRoutes override the ordinary default route without removing
+// it. The more-specific WireGuard endpoint /32 remains pinned to the original
+// Docker or Colima gateway, avoiding tunnel recursion and allowing recovery.
+func DefaultExternalRoutes() []string {
+	return []string{"0.0.0.0/1", "128.0.0.0/1"}
 }
 
 func (r *Relay) refreshEndpoint(ctx context.Context) {
