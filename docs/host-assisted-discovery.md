@@ -57,6 +57,10 @@ The download is self-contained; no archive extraction, separate
 loads its embedded, signed Wintun component from a private per-user cache when
 the tunnel starts.
 
+GitHub downloads do not preserve the executable bit. On macOS, enable it after
+verification with `chmod +x haos-one-host-mac-intel` or
+`chmod +x haos-one-host-mac-apple-silicon`.
+
 For development from this checkout:
 
 ```bash
