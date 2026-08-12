@@ -123,7 +123,7 @@ func (r *Relay) receive(ctx context.Context, handler func(Message)) error {
 
 func RunHost(ctx context.Context, cfg *Config) error {
 	if !isAdministrator() {
-		return errors.New("host run must be executed as root/Administrator")
+		return errors.New("haos-one-host run must be executed as root/Administrator")
 	}
 	tunnel, err := StartTunnel(ctx, cfg)
 	if err != nil {
@@ -471,7 +471,7 @@ func (r *Relay) writeState() {
 
 func RunGuest(ctx context.Context, cfg *Config) error {
 	if !isAdministrator() {
-		return errors.New("guest run requires root")
+		return errors.New("haos-one-agent requires root")
 	}
 	removeGuestNetworkProjection()
 	defer removeGuestNetworkProjection()

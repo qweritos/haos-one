@@ -2,14 +2,16 @@ FROM golang:1.24-bookworm AS net-builder
 
 ARG TARGETOS
 ARG TARGETARCH
+ARG AGENT_VERSION=dev
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
-COPY cmd/haos-one-net ./cmd/haos-one-net
+COPY cmd/haos-one-agent ./cmd/haos-one-agent
 COPY internal/netagent ./internal/netagent
+COPY internal/agent ./internal/agent
 RUN target_arch="${TARGETARCH:-$(go env GOARCH)}" && \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${target_arch} \
-    go build -trimpath -ldflags="-s -w" -o /out/haos-one-net ./cmd/haos-one-net && \
+    go build -trimpath -ldflags="-s -w -X main.version=${AGENT_VERSION}" -o /out/haos-one-agent ./cmd/haos-one-agent && \
     CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${target_arch} \
     go build -trimpath -ldflags="-s -w" -o /out/wireguard-go golang.zx2c4.com/wireguard
 
@@ -71,7 +73,7 @@ LABEL io.artifacthub.package.readme-url="https://raw.githubusercontent.com/qweri
 
 COPY --from=builder /rootfs/ /
 
-COPY --from=net-builder /out/haos-one-net /usr/local/bin/haos-one-net
+COPY --from=net-builder /out/haos-one-agent /usr/local/bin/haos-one-agent
 COPY --from=net-builder /out/wireguard-go /usr/local/bin/wireguard-go
 
 ADD ./rootfs /

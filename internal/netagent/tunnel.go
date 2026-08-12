@@ -269,7 +269,7 @@ func findHelper() (string, error) {
 	}
 	path, err := exec.LookPath(HelperName())
 	if err != nil {
-		return "", fmt.Errorf("%s is required next to haos-one-net or in PATH", HelperName())
+		return "", fmt.Errorf("%s is required next to haos-one-host or in PATH", HelperName())
 	}
 	return path, nil
 }

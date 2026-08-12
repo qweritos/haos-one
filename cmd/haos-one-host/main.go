@@ -19,17 +19,14 @@ var version = "dev"
 
 type stringList []string
 
-func (s *stringList) String() string { return strings.Join(*s, ",") }
-func (s *stringList) Set(value string) error {
-	*s = append(*s, value)
-	return nil
-}
+func (s *stringList) String() string         { return strings.Join(*s, ",") }
+func (s *stringList) Set(value string) error { *s = append(*s, value); return nil }
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lmsgprefix)
-	log.SetPrefix("haos-one-net: ")
+	log.SetPrefix("haos-one-host: ")
 	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "haos-one-net:", err)
+		fmt.Fprintln(os.Stderr, "haos-one-host:", err)
 		os.Exit(1)
 	}
 }
@@ -42,22 +39,14 @@ func run(args []string) error {
 	switch args[0] {
 	case "init":
 		return runInit(args[1:])
-	case "host":
-		if len(args) < 2 || args[1] != "run" {
-			return errors.New("usage: haos-one-net host run [--config PATH]")
-		}
-		return runAgent("host", args[2:])
-	case "guest":
-		if len(args) < 2 || args[1] != "run" {
-			return errors.New("usage: haos-one-net guest run [--config PATH]")
-		}
-		return runAgent("guest", args[2:])
+	case "run":
+		return runHost(args[1:])
 	case "doctor":
 		return runDoctor(args[1:])
 	case "cleanup":
 		return runCleanup(args[1:])
 	case "version", "--version", "-version":
-		fmt.Println(version)
+		fmt.Printf("%s (protocol %d)\n", version, netagent.ProtocolVersion)
 		return nil
 	case "help", "--help", "-h":
 		usage()
@@ -91,13 +80,13 @@ func runInit(args []string) error {
 	return nil
 }
 
-func runAgent(role string, args []string) error {
-	fs := flag.NewFlagSet(role+" run", flag.ContinueOnError)
+func runHost(args []string) error {
+	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	configPath := fs.String("config", "", "configuration file (or "+netagent.ConfigPathEnv+")")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	resolvedPath, err := netagent.ResolveConfigPath(*configPath, role)
+	resolvedPath, err := netagent.ResolveConfigPath(*configPath, "host")
 	if err != nil {
 		return err
 	}
@@ -105,15 +94,12 @@ func runAgent(role string, args []string) error {
 	if err != nil {
 		return err
 	}
-	if cfg.Role != role {
-		return fmt.Errorf("configuration role is %s, expected %s", cfg.Role, role)
+	if cfg.Role != "host" {
+		return fmt.Errorf("configuration role is %s, expected host", cfg.Role)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if role == "host" {
-		return netagent.RunHost(ctx, cfg)
-	}
-	return netagent.RunGuest(ctx, cfg)
+	return netagent.RunHost(ctx, cfg)
 }
 
 func runDoctor(args []string) error {
@@ -166,14 +152,13 @@ func runCleanup(args []string) error {
 }
 
 func usage() {
-	fmt.Print(`haos-one-net manages host-assisted discovery for HAOS One.
+	fmt.Print(`haos-one-host manages the HAOS One host networking companion.
 
 Commands:
   init       generate host and guest configuration
-  host run   run the macOS/Windows host gateway and discovery relay
-  guest run  run the in-container Linux tunnel and relay
+  run        run the macOS/Windows host gateway and discovery relay
   doctor     inspect configuration and live connectivity
   cleanup    remove managed host networking state
-  version    print the build version
+  version    print build and relay protocol versions
 `)
 }

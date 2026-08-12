@@ -12,6 +12,9 @@ import (
 
 const (
 	protocolVersion = 1
+	// ProtocolVersion is reported by host and guest diagnostics so mismatched
+	// preview artifacts can fail with an actionable message.
+	ProtocolVersion = protocolVersion
 	headerSize      = 32
 	maxDatagram     = 1100
 	maxMessage      = 65535

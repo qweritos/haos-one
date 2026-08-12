@@ -4,7 +4,7 @@ Docker Desktop and Colima normally place containers behind a Linux VM. HAOS
 One can reach the internet from that VM, but LAN multicast used by Home
 Assistant's Zeroconf/mDNS and SSDP discovery does not cross the VM boundary.
 
-`haos-one-net` provides an opt-in workaround:
+`haos-one-host` and the image's `haos-one-agent` provide an opt-in workaround:
 
 1. A native host process joins the physical LAN's mDNS and SSDP groups.
 2. A WireGuard tunnel becomes HAOS One's external IPv4 path after the
@@ -47,20 +47,20 @@ run `cleanup` after an unclean shutdown and after major macOS upgrades.
 Download the executable for the host platform and `SHA256SUMS` from the
 project release, then verify the executable against that manifest:
 
-- `haos-one-net-mac-intel` for Intel Macs.
-- `haos-one-net-mac-apple-silicon` for Apple Silicon Macs.
-- `haos-one-net-windows.exe` for 64-bit Windows.
+- `haos-one-host-mac-intel` for Intel Macs.
+- `haos-one-host-mac-apple-silicon` for Apple Silicon Macs.
+- `haos-one-host-windows.exe` for 64-bit Windows.
 
 The download is self-contained; no archive extraction, separate
 `wireguard-go`, or installer is required. Rename or install it as
-`haos-one-net` somewhere on `PATH`. On Windows the executable verifies and
+`haos-one-host` somewhere on `PATH`. On Windows the executable verifies and
 loads its embedded, signed Wintun component from a private per-user cache when
 the tunnel starts.
 
 For development from this checkout:
 
 ```bash
-go build -o ./bin/haos-one-net ./cmd/haos-one-net
+go build -o ./bin/haos-one-host ./cmd/haos-one-host
 ```
 
 ## Generate configuration
@@ -68,14 +68,14 @@ go build -o ./bin/haos-one-net ./cmd/haos-one-net
 Start Docker Desktop or Colima and run:
 
 ```bash
-haos-one-net init --runtime auto
+haos-one-host init --runtime auto
 ```
 
 The host publishes `homeassistant.local` by default. Choose a different mDNS
 name when initializing if the default conflicts with another device:
 
 ```bash
-haos-one-net init --runtime auto --dns-name my-home.local
+haos-one-host init --runtime auto --dns-name my-home.local
 ```
 
 Runtime detection recognizes Docker Desktop and active Colima Docker contexts.
@@ -91,14 +91,14 @@ the host default route, and the adapter's connected IPv4 subnet is still
 detected automatically:
 
 ```bash
-haos-one-net init --runtime docker-desktop --lan-interface "Ethernet 2"
+haos-one-host init --runtime docker-desktop --lan-interface "Ethernet 2"
 ```
 
 Use repeatable `--lan-cidr` values only to override or extend the automatically
 detected connected subnet with routed LAN prefixes:
 
 ```bash
-haos-one-net init --runtime colima \
+haos-one-host init --runtime colima \
   --lan-interface en0 \
   --lan-cidr 192.168.88.0/24 \
   --lan-cidr 10.20.0.0/16
@@ -138,7 +138,7 @@ Set-NetConnectionProfile -InterfaceAlias "Ethernet 2" -NetworkCategory Private
 Start the host agent first, using the absolute path printed by `init`:
 
 ```bash
-sudo haos-one-net host run --config "/absolute/path/to/host.yaml"
+sudo haos-one-host run --config "/absolute/path/to/host.yaml"
 ```
 
 Commands that load configuration use an explicit `--config` first, then
@@ -146,13 +146,13 @@ Commands that load configuration use an explicit `--config` first, then
 
 ```bash
 export HAOS_ONE_NET_CONFIG="/absolute/path/to/host.yaml"
-sudo --preserve-env=HAOS_ONE_NET_CONFIG haos-one-net host run
+sudo --preserve-env=HAOS_ONE_NET_CONFIG haos-one-host run
 ```
 
 On Windows, run the generated command from an Administrator PowerShell instead:
 
 ```powershell
-.\haos-one-net.exe host run --config "$env:APPDATA\haos-one\net\host.yaml"
+.\haos-one-host.exe run --config "$env:APPDATA\haos-one\net\host.yaml"
 ```
 
 Then start HAOS One. There is no host networking, WireGuard UDP publication,
@@ -191,8 +191,8 @@ forwards TCP 8123 through WireGuard to the guest tunnel address.
 ## Diagnose and clean up
 
 ```bash
-sudo haos-one-net doctor --config "/absolute/path/to/host.yaml" --container haos
-sudo haos-one-net cleanup --config "/absolute/path/to/host.yaml"
+sudo haos-one-host doctor --config "/absolute/path/to/host.yaml" --container haos
+sudo haos-one-host cleanup --config "/absolute/path/to/host.yaml"
 ```
 
 Use the same commands without `sudo` from Administrator PowerShell on Windows.

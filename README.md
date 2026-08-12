@@ -131,9 +131,8 @@ docker exec -it haos systemctl restart docker
 
 | Name | Description | Default |
 | --- | --- | --- |
-| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable the dummy responder inside `haos-one-compat` | `1` |
+| `USE_DUMMY_NETWORKMANAGER` | Disable NetworkManager and enable the compatible fake-Ethernet responder in `haos-one-agent` | `1` |
 | `USE_UDEV_SHIM` | Inject an idle Supervisor udev monitor when needed (`auto`, `force`, or `off`) | `auto` |
-| `DEV` | Used for development purposes - mount live `haos-one-compat` code volume | `0` |
 
 When the udev shim is enabled, upgrading an existing installation automatically
 recreates `hassio_supervisor` once if its stored container configuration lacks

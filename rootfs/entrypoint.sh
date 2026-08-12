@@ -49,23 +49,10 @@ case "$use_udev_shim" in
   *) echo "Unsupported USE_UDEV_SHIM=$use_udev_shim (use auto, force, or off)" >&2; exit 1 ;;
 esac
 
-mkdir -p /etc/haos-one-compat
-printf '%s\n' "$use_udev_shim" > /etc/haos-one-compat/udev-shim-mode
-
 mkdir -p /etc/systemd/system/multi-user.target.wants
-ln -sf /etc/systemd/system/haos-one-compat.service /etc/systemd/system/multi-user.target.wants/haos-one-compat.service
-mkdir -p /etc/systemd/system/haos-one-compat.service.d
-cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
-[Service]
-ExecStart=
-ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -v /run/dbus:/run/dbus -v /run:/host-run haos_one_compat
-EOF
-
-if [ -r /etc/haos-one/desktop-network.yaml ]; then
-  ln -sf /etc/systemd/system/haos-one-net.service /etc/systemd/system/multi-user.target.wants/haos-one-net.service
-else
-  rm -f /etc/systemd/system/multi-user.target.wants/haos-one-net.service
-fi
+ln -sf /etc/systemd/system/haos-one-agent.service /etc/systemd/system/multi-user.target.wants/haos-one-agent.service
+printf 'USE_DUMMY_NETWORKMANAGER=%s\nUSE_UDEV_SHIM=%s\n' \
+  "$use_dummy_networkmanager" "$use_udev_shim" > /run/haos-one-agent.env
 
 # Disable in-container udev; Supervisor uses host udev data and the compatibility
 # monitor when the outer runtime cannot expose kernel events.
@@ -90,16 +77,6 @@ if [ "$disable_ha_cli" -eq 1 ]; then
   ln -sf /dev/null /etc/systemd/system/ha-cli@console.service
   ln -sf /dev/null /etc/systemd/system/ha-cli@tty1.service
 fi
-
-case "${DEV:-0}" in
-  1|true|TRUE|yes|YES|on|ON)
-    cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
-[Service]
-ExecStart=
-ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -v /run/dbus:/run/dbus -v /run:/host-run -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
-EOF
-    ;;
-esac
 
 # make rauc to start
 if [ -x /usr/bin/grub-editenv ]; then

@@ -2,6 +2,7 @@ package netagent
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -81,6 +82,21 @@ func Doctor(ctx context.Context, cfg *Config, container string) []Check {
 			running := inspectErr == nil && strings.TrimSpace(string(out)) == "true"
 			checks = append(checks, Check{Name: "container " + container, OK: running, Detail: errorDetail(inspectErr, strings.TrimSpace(string(out)))})
 			if running {
+				versionCommand := exec.CommandContext(ctx, "docker", "exec", container, "cat", "/run/haos-one-agent/version.json")
+				versionOutput, versionErr := versionCommand.Output()
+				var agentVersion struct {
+					Version  string `json:"version"`
+					Protocol int    `json:"protocol"`
+				}
+				if versionErr == nil {
+					versionErr = json.Unmarshal(versionOutput, &agentVersion)
+				}
+				versionOK := versionErr == nil && agentVersion.Protocol == ProtocolVersion
+				versionDetail := errorDetail(versionErr, fmt.Sprintf("%s (protocol %d)", agentVersion.Version, agentVersion.Protocol))
+				if versionErr == nil && !versionOK {
+					versionDetail = fmt.Sprintf("agent protocol %d is incompatible with host protocol %d", agentVersion.Protocol, ProtocolVersion)
+				}
+				checks = append(checks, Check{Name: "container agent version", OK: versionOK, Detail: versionDetail})
 				probe := "getent hosts " + DefaultHostEndpoint + " 2>/dev/null || nslookup " + DefaultHostEndpoint + " 2>/dev/null || ping -c 1 " + DefaultHostEndpoint
 				resolve := exec.CommandContext(ctx, "docker", "exec", container, "sh", "-c", probe)
 				out, resolveErr := resolve.CombinedOutput()

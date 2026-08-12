@@ -1,0 +1,18 @@
+[Unit]
+Description=HAOS One guest networking and Supervisor compatibility agent
+After=network-online.target dbus.service
+Wants=network-online.target dbus.service
+Before=haos-supervisor.service hassos-supervisor.service
+
+[Service]
+Type=notify
+NotifyAccess=main
+EnvironmentFile=-/run/haos-one-agent.env
+ExecStart=/usr/local/bin/haos-one-agent
+Restart=always
+RestartSec=3s
+TimeoutStartSec=90s
+TimeoutStopSec=20s
+
+[Install]
+WantedBy=multi-user.target

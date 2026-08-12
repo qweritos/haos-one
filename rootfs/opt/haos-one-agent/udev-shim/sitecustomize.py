@@ -43,7 +43,7 @@ class _IdleMonitor:
 
 
 def _from_netlink(cls, context, source="udev"):
-    if source != "kernel":
+    if source != "udev" or os.getenv("USE_UDEV_SHIM") != "active":
         return _ORIGINAL_FROM_NETLINK(context, source)
     _LOGGER.info("Using idle kernel udev monitor for nested LXC compatibility")
     return _IdleMonitor(context)

@@ -436,10 +436,10 @@ func uniqueStrings(in []string) []string {
 func DockerSnippets(result *InitResult) string {
 	guest := result.GuestPath
 	mount := guest + ":/etc/haos-one/desktop-network.yaml:ro"
-	hostCommand := "sudo haos-one-net host run --config " + shellQuote(result.HostPath)
+	hostCommand := "sudo haos-one-host run --config " + shellQuote(result.HostPath)
 	continuation := "\\"
 	if runtime.GOOS == "windows" {
-		hostCommand = ".\\haos-one-net.exe host run --config " + shellQuote(result.HostPath)
+		hostCommand = ".\\haos-one-host.exe run --config " + shellQuote(result.HostPath)
 		continuation = "`"
 	}
 	return fmt.Sprintf(`Host agent (run as root/Administrator):
