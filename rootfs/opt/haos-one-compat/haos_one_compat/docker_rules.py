@@ -65,6 +65,8 @@ def rewrite_create_request_payload(
 
     if setup_port and _is_homeassistant_create(path, data):
         changed = _inject_env(data, "SETUP_PORT", setup_port) or changed
+        if _is_homeassistant_landingpage_create(data):
+            changed = _publish_landingpage_port(data, setup_port) or changed
 
     if not changed:
         return payload
@@ -109,6 +111,42 @@ def _is_homeassistant_create(path: str, data: dict[str, Any]) -> bool:
     target = urlsplit(path)
     names = parse_qs(target.query).get("name", [])
     return any(name.lstrip("/") == "homeassistant" for name in names)
+
+
+def _is_homeassistant_landingpage_create(data: dict[str, Any]) -> bool:
+    image = data.get("Image")
+    return isinstance(image, str) and image.endswith(":landingpage")
+
+
+def _publish_landingpage_port(data: dict[str, Any], setup_port: str) -> bool:
+    try:
+        port = int(setup_port)
+    except ValueError:
+        return False
+    if port < 1 or port > 65535:
+        return False
+
+    host_config = data.get("HostConfig")
+    if not isinstance(host_config, dict):
+        return False
+
+    changed = host_config.get("NetworkMode") != "hassio"
+    host_config["NetworkMode"] = "hassio"
+
+    wanted_binding = [{"HostIp": "", "HostPort": str(port)}]
+    port_bindings = host_config.setdefault("PortBindings", {})
+    if not isinstance(port_bindings, dict):
+        return changed
+    if port_bindings.get("80/tcp") != wanted_binding:
+        port_bindings["80/tcp"] = wanted_binding
+        changed = True
+
+    exposed_ports = data.setdefault("ExposedPorts", {})
+    if isinstance(exposed_ports, dict) and "80/tcp" not in exposed_ports:
+        exposed_ports["80/tcp"] = {}
+        changed = True
+
+    return changed
 
 
 def _inject_env(data: dict[str, Any], name: str, value: str) -> bool:
