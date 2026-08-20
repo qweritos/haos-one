@@ -122,6 +122,51 @@ class DockerRulesTests(unittest.TestCase):
 
         self.assertIn("SETUP_PORT=8123", rewritten["Env"])
 
+    def test_landingpage_uses_hassio_network_and_publishes_setup_port(self) -> None:
+        payload = json.dumps(
+            {
+                "Image": "ghcr.io/home-assistant/qemux86-64-homeassistant:landingpage",
+                "Env": ["SUPERVISOR=172.30.32.2"],
+                "HostConfig": {"NetworkMode": "host", "PortBindings": {}},
+            }
+        ).encode()
+
+        rewritten = json.loads(
+            rewrite_create_request_payload(
+                "/containers/create?name=homeassistant",
+                payload,
+                setup_port="8765",
+            )
+        )
+
+        self.assertEqual(rewritten["HostConfig"]["NetworkMode"], "hassio")
+        self.assertEqual(
+            rewritten["HostConfig"]["PortBindings"]["80/tcp"],
+            [{"HostIp": "", "HostPort": "8765"}],
+        )
+        self.assertEqual(rewritten["ExposedPorts"]["80/tcp"], {})
+        self.assertIn("SETUP_PORT=8765", rewritten["Env"])
+
+    def test_core_keeps_host_network_with_setup_port(self) -> None:
+        payload = json.dumps(
+            {
+                "Image": "ghcr.io/home-assistant/qemux86-64-homeassistant:2026.8.2",
+                "HostConfig": {"NetworkMode": "host", "PortBindings": {}},
+            }
+        ).encode()
+
+        rewritten = json.loads(
+            rewrite_create_request_payload(
+                "/containers/create?name=homeassistant",
+                payload,
+                setup_port="8765",
+            )
+        )
+
+        self.assertEqual(rewritten["HostConfig"]["NetworkMode"], "host")
+        self.assertEqual(rewritten["HostConfig"]["PortBindings"], {})
+        self.assertIn("SETUP_PORT=8765", rewritten["Env"])
+
     def test_homeassistant_create_replaces_existing_setup_port(self) -> None:
         payload = b'{"Env":["SETUP_PORT=80","OTHER=value"],"HostConfig":{}}'
         rewritten = json.loads(
