@@ -38,6 +38,7 @@ def rewrite_create_request_payload(
     payload: bytes,
     *,
     inject_udev_shim: bool = False,
+    setup_port: str | None = None,
 ) -> bytes:
     """Remove container-create options unsupported by nested unprivileged LXC."""
     if not is_create_request(path):
@@ -61,6 +62,9 @@ def rewrite_create_request_payload(
 
     if inject_udev_shim and _is_supervisor_create(path, data):
         changed = _inject_udev_shim(data) or changed
+
+    if setup_port and _is_homeassistant_create(path, data):
+        changed = _inject_env(data, "SETUP_PORT", setup_port) or changed
 
     if not changed:
         return payload
@@ -99,6 +103,39 @@ def _is_supervisor_create(path: str, data: dict[str, Any]) -> bool:
 
     image = data.get("Image")
     return isinstance(image, str) and "hassio-supervisor" in image.lower()
+
+
+def _is_homeassistant_create(path: str, data: dict[str, Any]) -> bool:
+    target = urlsplit(path)
+    names = parse_qs(target.query).get("name", [])
+    return any(name.lstrip("/") == "homeassistant" for name in names)
+
+
+def _inject_env(data: dict[str, Any], name: str, value: str) -> bool:
+    environment = data.get("Env")
+    if environment is None:
+        environment = []
+        data["Env"] = environment
+    if not isinstance(environment, list):
+        return False
+
+    prefix = f"{name}="
+    index = next(
+        (
+            index
+            for index, item in enumerate(environment)
+            if isinstance(item, str) and item.startswith(prefix)
+        ),
+        None,
+    )
+    wanted = f"{name}={value}"
+    if index is None:
+        environment.append(wanted)
+        return True
+    if environment[index] != wanted:
+        environment[index] = wanted
+        return True
+    return False
 
 
 def _inject_udev_shim(data: dict[str, Any]) -> bool:
