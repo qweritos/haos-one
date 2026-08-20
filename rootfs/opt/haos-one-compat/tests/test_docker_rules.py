@@ -103,6 +103,47 @@ class DockerRulesTests(unittest.TestCase):
             payload,
         )
 
+    def test_homeassistant_create_injects_setup_port(self) -> None:
+        payload = json.dumps(
+            {
+                "Image": "ghcr.io/home-assistant/qemux86-64-homeassistant:2026.8.2",
+                "Env": ["SUPERVISOR=http://supervisor"],
+                "HostConfig": {"NetworkMode": "host"},
+            }
+        ).encode()
+
+        rewritten = json.loads(
+            rewrite_create_request_payload(
+                "/v1.47/containers/create?name=homeassistant",
+                payload,
+                setup_port="8123",
+            )
+        )
+
+        self.assertIn("SETUP_PORT=8123", rewritten["Env"])
+
+    def test_homeassistant_create_replaces_existing_setup_port(self) -> None:
+        payload = b'{"Env":["SETUP_PORT=80","OTHER=value"],"HostConfig":{}}'
+        rewritten = json.loads(
+            rewrite_create_request_payload(
+                "/containers/create?name=homeassistant",
+                payload,
+                setup_port="8123",
+            )
+        )
+        self.assertEqual(rewritten["Env"], ["SETUP_PORT=8123", "OTHER=value"])
+
+    def test_setup_port_is_not_injected_into_other_containers(self) -> None:
+        payload = b'{"Image":"alpine:latest","HostConfig":{}}'
+        self.assertIs(
+            rewrite_create_request_payload(
+                "/containers/create?name=addon_test",
+                payload,
+                setup_port="8123",
+            ),
+            payload,
+        )
+
     def test_supervisor_create_injects_udev_shim(self) -> None:
         payload = json.dumps(
             {

@@ -52,10 +52,15 @@ async def run_services(args) -> None:
         mode or "auto",
         inject_udev_shim,
     )
+    setup_port = os.getenv("SETUP_PORT") or None
+    if setup_port:
+        _LOGGER.info("Home Assistant SETUP_PORT override=%s", setup_port)
+
     proxy = DockerSocketProxy(
         frontend_path=args.frontend_socket,
         upstream_path=args.upstream_socket,
         inject_udev_shim=inject_udev_shim,
+        setup_port=setup_port,
     )
     tasks = {
         asyncio.create_task(proxy.serve_forever(), name="docker-proxy"),

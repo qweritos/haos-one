@@ -209,12 +209,14 @@ def rewrite_http_request(
     body: bytes,
     *,
     inject_udev_shim: bool = False,
+    setup_port: str | None = None,
 ) -> bytes:
     """Serialize a container-create request with compatibility options removed."""
     rewritten_body = rewrite_create_request_payload(
         request.path,
         body,
         inject_udev_shim=inject_udev_shim,
+        setup_port=setup_port,
     )
     if rewritten_body == body:
         return request.raw + body
@@ -337,10 +339,12 @@ class DockerSocketProxy:
         upstream_path: str,
         *,
         inject_udev_shim: bool = False,
+        setup_port: str | None = None,
     ) -> None:
         self.frontend_path = frontend_path
         self.upstream_path = upstream_path
         self.inject_udev_shim = inject_udev_shim
+        self.setup_port = setup_port
         self._server: asyncio.AbstractServer | None = None
 
     async def _wait_for_upstream(self, timeout: float = 30.0) -> None:
@@ -419,6 +423,7 @@ class DockerSocketProxy:
                         request,
                         body,
                         inject_udev_shim=self.inject_udev_shim,
+                        setup_port=self.setup_port,
                     )
                     if rewritten_request == request.raw + body:
                         upstream_writer.write(request.raw + raw_body)

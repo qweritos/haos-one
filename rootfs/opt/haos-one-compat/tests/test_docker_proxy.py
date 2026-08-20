@@ -230,6 +230,24 @@ class DockerProxyTests(unittest.IsolatedAsyncioTestCase):
             len(self.request_bodies[-1]),
         )
 
+    async def test_injects_setup_port_into_homeassistant_create(self) -> None:
+        self.proxy.setup_port = "8123"
+        payload = json.dumps(
+            {
+                "Image": "ghcr.io/home-assistant/qemux86-64-homeassistant:2026.8.2",
+                "Env": ["SUPERVISOR=http://supervisor"],
+                "HostConfig": {"NetworkMode": "host"},
+            }
+        ).encode()
+
+        await self._post_json(
+            "/v1.47/containers/create?name=homeassistant",
+            payload,
+        )
+
+        rewritten = json.loads(self.request_bodies[-1])
+        self.assertIn("SETUP_PORT=8123", rewritten["Env"])
+
     async def test_injects_udev_shim_into_supervisor_create(self) -> None:
         self.proxy.inject_udev_shim = True
         payload = json.dumps(

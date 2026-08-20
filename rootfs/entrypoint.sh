@@ -58,7 +58,7 @@ mkdir -p /etc/systemd/system/haos-one-compat.service.d
 cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -v /run/dbus:/run/dbus -v /run:/host-run haos_one_compat
+ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -e SETUP_PORT=${SETUP_PORT:-} -v /run/dbus:/run/dbus -v /run:/host-run haos_one_compat
 EOF
 
 # Disable in-container udev; Supervisor uses host udev data and the compatibility
@@ -90,7 +90,7 @@ case "${DEV:-0}" in
     cat > /etc/systemd/system/haos-one-compat.service.d/override.conf <<EOF
 [Service]
 ExecStart=
-ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -v /run/dbus:/run/dbus -v /run:/host-run -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
+ExecStart=/usr/bin/docker run --name haos_one_compat -e USE_DUMMY_NETWORKMANAGER=$use_dummy_networkmanager -e USE_UDEV_SHIM=$use_udev_shim -e SETUP_PORT=${SETUP_PORT:-} -v /run/dbus:/run/dbus -v /run:/host-run -v /opt/haos-one-compat:/opt/haos-one-compat haos_one_compat
 EOF
     ;;
 esac
