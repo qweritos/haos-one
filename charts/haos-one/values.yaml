@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: qweritos/haos-one
-  tag: "18.2"
+  tag: "18.3"
   pullPolicy: IfNotPresent
 
 nameOverride: ""
