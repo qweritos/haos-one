@@ -35,9 +35,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          latest_version="$(gh api repos/home-assistant/operating-system/releases/latest --jq '.tag_name // empty')"
+          latest_version="$(gh api 'repos/home-assistant/operating-system/releases?per_page=100' --jq '
+            first(.[] | select(.draft == false and .prerelease == false)
+              | . as $release
+              | select(any(.assets[]; .name == "haos_ova-\($release.tag_name).qcow2.xz"))
+              | select(any(.assets[]; .name == "haos_generic-aarch64-\($release.tag_name).qcow2.xz"))
+              | .tag_name) // empty
+          ')"
           if [ -z "${latest_version}" ]; then
-            echo "Failed to resolve the latest stable HAOS version." >&2
+            echo "Failed to resolve the latest compatible stable HAOS version." >&2
             exit 1
           fi
           version="${HAOS_VERSION}"
@@ -274,9 +280,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HAOS_VERSION: ${{ needs.resolve-haos-version.outputs.version }}
         run: |
-          latest_version="$(gh api repos/home-assistant/operating-system/releases/latest --jq '.tag_name // empty')"
+          latest_version="$(gh api 'repos/home-assistant/operating-system/releases?per_page=100' --jq '
+            first(.[] | select(.draft == false and .prerelease == false)
+              | . as $release
+              | select(any(.assets[]; .name == "haos_ova-\($release.tag_name).qcow2.xz"))
+              | select(any(.assets[]; .name == "haos_generic-aarch64-\($release.tag_name).qcow2.xz"))
+              | .tag_name) // empty
+          ')"
           if [ -z "${latest_version}" ]; then
-            echo "Failed to resolve the latest stable HAOS version." >&2
+            echo "Failed to resolve the latest compatible stable HAOS version." >&2
             exit 1
           fi
           if [ "${HAOS_VERSION}" != "${latest_version}" ]; then
