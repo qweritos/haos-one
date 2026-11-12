@@ -106,6 +106,10 @@ class Settings(ServiceInterface):
         return sorted(self._registry.state.settings.keys())
 
     @method()
+    def ListConnections(self) -> "ao":
+        return self.Connections
+
+    @method()
     def AddConnection(self, connection: "a{sa{sv}}") -> "o":
         forbid_modification()
 
@@ -121,6 +125,10 @@ class SettingsConnection(ServiceInterface):
         super().__init__("org.freedesktop.NetworkManager.Settings.Connection")
         self._registry = registry
         self.object_path = object_path
+
+    @dbus_property(access=PropertyAccess.READ)
+    def Flags(self) -> "u":
+        return 0
 
     @signal()
     def Updated(self) -> "":
